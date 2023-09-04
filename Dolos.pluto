@@ -1208,12 +1208,12 @@ end)
 local relocated = {}
 ONLINE_ROOT:toggle_loop('Sink Kosatkas', {}, 'Dive! Dive! Dive!', function()
     for _, hdl in pairs(entities.get_all_vehicles_as_handles()) do
-        if GET_ENTITY_MODEL(hdl) == util.joaat('kosatka') and GET_ENTITY_COORDS(hdl).z > -60 then 
+        if GET_ENTITY_MODEL(hdl) == util.joaat('kosatka') and GET_ENTITY_COORDS(hdl).z > -90 then 
             if players.is_marked_as_modder(entities.get_owner(hdl)) and detection_protection then 
                 pluto_continue
             end
             request_control_of_entity(hdl)
-            SET_ENTITY_VELOCITY(hdl, 0.0, 0.0, -5.0)
+            SET_ENTITY_VELOCITY(hdl, 0.0, 0.0, -10.0)
         end
     end
 end)
@@ -1300,6 +1300,7 @@ util.create_tick_handler(function()
             util.request_model(duke_mdl_hash, 2000)
             duke_ped = entities.create_ped(28, duke_mdl_hash, players.get_position(players.user()), math.random(270))
             SET_ENTITY_INVINCIBLE(duke_ped, true)
+            SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(duke_ped, true)
             SET_PED_CAN_RAGDOLL(duke_ped, false)    
             TASK_FOLLOW_TO_OFFSET_OF_ENTITY(duke_ped, players.user_ped(), 0, -1, 0, 7.0, -1, 1, true)
             duke_blip = ADD_BLIP_FOR_ENTITY(duke_ped)
@@ -1507,6 +1508,12 @@ function set_up_player_actions(pid)
             send_attacker_after_player(pid, util.joaat('a_c_rabbit_02'), 0, i)
         end
         success('Attackers sent after ' .. players.get_name(pid))
+    end)
+    
+    attackers_root:action("Hobo shank", {'hoboshank'}, "", function()
+        local atk = send_attacker_after_player(pid, util.joaat('a_m_o_tramp_01'), 0, 0)
+        GIVE_WEAPON_TO_PED(atk, util.joaat('weapon_knife'), 9999, false, false)
+        success('Attacker sent after ' .. players.get_name(pid))
     end)
 
     npc_root:action("Spawn naughty chop", {}, "", function()
@@ -2097,7 +2104,7 @@ function set_up_player_actions(pid)
         local tar_veh = GET_VEHICLE_PED_IS_IN(pid_to_ped(pid), true) 
         if tar_veh ~= 0 then 
             request_control_of_entity(tar_veh)
-            APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(tar_veh, 1, math.random(-10, 10), math.random(-10, 10), 0.0, true, true, true, true)
+            APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(tar_veh, 1, math.random(-1, 1)*10, math.random(-1, 1)*10, math.random(-1, 1)*10, true, true, true, true)
         else
             fail('Target is not in a car')
         end
@@ -2138,6 +2145,21 @@ function set_up_player_actions(pid)
         end
     end)
     
+    veh_root:toggle("Gravity", {}, "", function(on)
+        if players.is_marked_as_modder(pid) and detection_protection then 
+            fail('Target is a modder and detection protection is on.')
+            return
+        end
+        local car = GET_VEHICLE_PED_IS_IN(pid_to_ped(pid), true)
+        if car ~= 0 then
+            request_control_of_entity(car)
+            SET_VEHICLE_GRAVITY(car, on)
+            SET_ENTITY_HAS_GRAVITY(car, on)
+        else
+            fail('Target is not in a car')
+        end
+    end, true)
+
     local custom_hooker_options = {"Clone player", "Lester", "Tracy", "Ms Baker"}
     npc_root:list_action("Spawn hooker", {'doloshooker'}, '', custom_hooker_options, function(index, value, click_type)
         local hooker
@@ -2191,6 +2213,44 @@ function set_up_player_actions(pid)
             play_anim(ped, rand[1], rand[2], -1)
         end
     end)
+
+    npc_root:action("Spawn bum fight", {}, "", function()
+        local player_ped = pid_to_ped(pid)
+        local p1_hash = util.joaat('a_m_o_tramp_01')
+        local p2_hash = util.joaat('a_m_m_trampbeac_01')
+        util.request_model(p1_hash, 2000)
+        util.request_model(p2_hash, 2000)
+        local spawn_pos = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(player_ped, 0.0, 10.0, -0.3)
+        local bum1 = entities.create_ped(28, p1_hash, spawn_pos, 0.0)
+        local bum2 = entities.create_ped(28, p2_hash, spawn_pos, 0.0)
+        for _, ped in pairs({bum1, bum2}) do
+            SET_PED_COMBAT_ATTRIBUTES(ped, 5, true)
+            SET_PED_FLEE_ATTRIBUTES(ped, 0, false)
+            SET_PED_COMBAT_ATTRIBUTES(ped, 46, true)
+        end
+        TASK_COMBAT_PED(bum1, bum2, 0, 16)
+        TASK_COMBAT_PED(bum2, bum1, 0, 16)
+    end)
+
+        npc_root:action("Spawn fat bitches fighting", {}, "", function()
+        local player_ped = pid_to_ped(pid)
+        local p1_hash = util.joaat('A_F_M_FatBla_01')
+        local p2_hash = util.joaat('A_F_M_FatWhite_01')
+        util.request_model(p1_hash, 2000)
+        util.request_model(p2_hash, 2000)
+        local spawn_pos = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(player_ped, 0.0, 10.0, -0.3)
+        local bum1 = entities.create_ped(28, p1_hash, spawn_pos, 0.0)
+        local bum2 = entities.create_ped(28, p2_hash, spawn_pos, 0.0)
+        for _, ped in pairs({bum1, bum2}) do
+            SET_PED_COMBAT_ATTRIBUTES(ped, 5, true)
+            SET_PED_FLEE_ATTRIBUTES(ped, 0, false)
+            SET_PED_COMBAT_ATTRIBUTES(ped, 46, true)
+        end
+        TASK_COMBAT_PED(bum1, bum2, 0, 16)
+        TASK_COMBAT_PED(bum2, bum1, 0, 16)
+    end)
+
+
 
     npc_root:action("Suicide nearby ped", {"suicideclosest"}, "", function()
         local ped = get_closest_ped(players.get_position(pid), 100)
