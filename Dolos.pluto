@@ -1705,7 +1705,7 @@ function set_up_player_actions(pid)
 
     infantry_root:action("Discord mod", {'dcmod'}, "", function()
         for i=1, num_attackers do
-            local data = send_attacker_after_player(pid, util.joaat('IG_RoosterMcCraw'), 0, 0, -i * 0.05, 0)
+            local data = send_attacker_after_player(pid, util.joaat('IG_RoosterMcCraw'), 0, 0, -i * 0.05, selected_attacker_wep)
             SET_ENTITY_HEALTH(data.ped, 100.0, 0)
         end
     end)
@@ -1713,25 +1713,25 @@ function set_up_player_actions(pid)
     
     infantry_root:action("Grinch", {'grinch'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, util.joaat('U_M_M_YuleMonster'), 0, 0, -i * 0.05, 0)
+            send_attacker_after_player(pid, util.joaat('U_M_M_YuleMonster'), 0, 0, -i * 0.05, selected_attacker_wep)
         end
     end)
 
     infantry_root:action("Post Malone", {'malone'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, -244824852, 0, 0, -i * 0.05, 0)
+            send_attacker_after_player(pid, -244824852, 0, 0, -i * 0.05, selected_attacker_wep)
         end
     end)
 
     infantry_root:action("Furry", {'uwu'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid,  0x50262DB9, 0, 0, -i * 0.05, 0)
+            send_attacker_after_player(pid,  0x50262DB9, 0, 0, -i * 0.05, selected_attacker_wep)
         end
     end)
 
     infantry_root:action("Dr. Dre mothafucka", {'uwu'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, 2275358319, 0, 0, -i * 0.05, 0)
+            send_attacker_after_player(pid, 2275358319, 0, 0, -i * 0.05, selected_attacker_wep)
         end
     end)
 
