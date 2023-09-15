@@ -624,7 +624,7 @@ function send_naughty_chimp(pid)
     end)
 end
 
-function new_attacker(attacker_mdl, vehicle_mdl, coords, hdg) 
+function new_attacker(attacker_mdl, vehicle_mdl, coords, hdg, weapon) 
     local this_attacker = {
     }
     util.request_model(attacker_mdl, 2000)
@@ -642,18 +642,26 @@ function new_attacker(attacker_mdl, vehicle_mdl, coords, hdg)
     SET_COMBAT_FLOAT(attacker_ped, 19, 0.0)
     SET_COMBAT_FLOAT(attacker_ped, 20, 0.0)
     ADD_BLIP_FOR_ENTITY(attacker_ped)
+    if weapon ~= 0 then 
+        REQUEST_WEAPON_ASSET(weapon, 31, 0)
+        GIVE_WEAPON_TO_PED(attacker_ped, weapon, 9999, false, true)
+    end
+
     return this_attacker
 end
 
-function send_attacker_after_ped(ped, attacker_mdl, vehicle_mdl, x_off)
+function send_attacker_after_ped(ped, attacker_mdl, vehicle_mdl, x_off, y_off, weapon)
     local c = {}
+    local data = {
+        vehicle = 0
+    }
     local plane = false
     if vehicle_mdl ~= 0 then
         if IS_THIS_MODEL_A_PLANE(vehicle_mdl) then
             plane = true
-            c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped, x_off, -100.0, 100 + math.random(0, 50))
+            c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped, x_off, y_off * 10, 100 + math.random(0, 50))
         else
-            c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped, x_off, -10.0, -0.5)
+            c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped, x_off, y_off, -0.5)
         end
     else
         c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped, x_off, -5.0, -0.5)
@@ -666,13 +674,14 @@ function send_attacker_after_ped(ped, attacker_mdl, vehicle_mdl, x_off)
     end
 
     util.request_model(attacker_mdl, 2000)
-    local attacker = new_attacker(attacker_mdl, vehicle_mdl, c, GET_ENTITY_HEADING(ped))
+    local attacker = new_attacker(attacker_mdl, vehicle_mdl, c, GET_ENTITY_HEADING(ped), weapon)
     if vehicle_mdl ~= 0 then 
         util.request_model(vehicle_mdl, 2000)
         local jet = entities.create_vehicle(vehicle_mdl, c, GET_ENTITY_HEADING(ped))
         SET_PED_INTO_VEHICLE(attacker.ped, jet, -1)
         if plane then
             SET_HELI_BLADES_FULL_SPEED(jet)
+            data.vehicle = jet
             SET_VEHICLE_FORWARD_SPEED(jet, GET_VEHICLE_ESTIMATED_MAX_SPEED(jet))
             TASK_PLANE_MISSION(attacker.ped, jet, 0, ped, 0, 0, 0, 6, 0.0, 0, 0.0, 50.0, 40.0)
             SET_VEHICLE_SHOOT_AT_TARGET(attacker.ped, jet, c.x, c.y, c.z)
@@ -684,12 +693,13 @@ function send_attacker_after_ped(ped, attacker_mdl, vehicle_mdl, x_off)
     else
         TASK_COMBAT_PED(attacker.ped, ped, 0, 16)
     end
-    return attacker.ped
+    data.ped = attacker.ped 
+    return data
 end
 
-function send_attacker_after_player(pid, attacker_mdl, vehicle_mdl, x_off)
-    local ped = send_attacker_after_ped(pid_to_ped(pid), attacker_mdl, vehicle_mdl, x_off)
-    return ped
+function send_attacker_after_player(pid, attacker_mdl, vehicle_mdl, x_off, y_off, weapon)
+    local data = send_attacker_after_ped(pid_to_ped(pid), attacker_mdl, vehicle_mdl, x_off, y_off, weapon)
+    return data
 end
 
 WORLD_ROOT:action('Domestic Terrorist', {}, 'Kills the engines of all planes', function()
@@ -928,7 +938,7 @@ end)
 SELF_ROOT:toggle('Infinite stairs', {}, '', function(on)
     if on then 
         local c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(players.user_ped(), 0.5, 0.0, -2.0)
-        stair_climb = true
+        stair_climb = true  
     else
         stair_climb = false
         if stairs ~= nil then 
@@ -1116,7 +1126,7 @@ end)
 
 local ap_give_root = ONLINE_ROOT:list('Give vehicle', {}, '')
 
-ap_give_root:action('Input model name', {'givealltypedveh'}, '', function()
+ap_give_root:action('Input model', {'givealltypedveh'}, '', function()
     menu.show_command_box('givealltypedveh ')
 end, function(on_command)
         local typed = on_command
@@ -1439,6 +1449,42 @@ function give_player_vehicle(pid, v_hash)
     upgrade_car(veh)
 end
 
+function spawn_ped_for_blame(c)
+    local p_hash = util.joaat('s_m_m_pilot_02')
+    util.request_model(p_hash, 2000)
+    local ped = entities.create_ped(28, p_hash, c, 90.0)
+    SET_ENTITY_INVINCIBLE(ped, true)
+    FREEZE_ENTITY_POSITION(ped, true)
+    return ped
+end
+
+function count_occurrences(table, element)
+    local count = 0
+    for _, value in ipairs(table) do
+        if value == element then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+
+local weapon_names = {}
+local weapon_hashes = {}
+
+weapon_names[1] = 'Unarmed'
+weapon_hashes[1] = 0
+
+for util.get_weapons() as w do 
+    local name = util.get_label_text(w.label_key)
+    if table.contains(weapon_names, name) then 
+        name = name .. ' ' .. tostring(count_occurrences(weapon_names, name)) + 1
+    end
+    weapon_names[#weapon_names+1] = name
+    weapon_hashes[#weapon_hashes+1] = w.hash
+end
+
+
 function set_up_player_actions(pid)
     local player_root = menu.player_root(pid) 
     player_root:divider('Dolos Trolling')
@@ -1447,74 +1493,174 @@ function set_up_player_actions(pid)
     local tp_root = player_root:list("Teleport to")
     local npc_root = player_root:list('NPCs')
     local attackers_root = npc_root:list('Attack')
+
+    local selected_attacker_wep = 0
+    attackers_root:list_select('Attacker weapon', {'attackerwep'}, 'Some unique attackers are unaffected by this option', weapon_names, 1, function(sel)
+        selected_attacker_wep = weapon_hashes[sel]
+    end)
+
+    local num_attackers = 1
+    attackers_root:slider('Number of attackers', {'attackerwep'}, 'Some unique attackers are unaffected by this option', 1, 10, 1, 1, function(num)
+        num_attackers = num
+    end)
+
     local plane_attackers_root = attackers_root:list('Aircraft')
     local car_attackers_root = attackers_root:list('Ground vehicles')
+    local infantry_root = attackers_root:list('Ground infantry', {}, '')
+    local special_atk_root = attackers_root:list('Special', {}, '')
     local explosions_root = player_root:list('Explosions')
     local object_root = player_root:list('Objects')
     local misc_trolls_root = player_root:list('Misc Trolls')
 
-    attackers_root:action("Chimp attack", {}, "", function()
+    infantry_root:action("Input model", {'doloscustomatk'}, "", function()
+        menu.show_command_box('doloscustomatk'  .. players.get_name(pid) .. ' ')
+    end, function(entry)
+        local entry = util.joaat(entry)
+        if not IS_MODEL_VALID(entry) then
+            fail('Invalid model name')
+            return
+        end
+        send_attacker_after_player(pid, entry, 0, 0, -10.0, selected_attacker_wep)
+    end)
+
+
+    special_atk_root:action("Chimp attack", {}, "", function()
         for i=-3, 3 do
-            send_attacker_after_player(pid, util.joaat('a_c_chimp_02'), 0, i)
+            send_attacker_after_player(pid, util.joaat('a_c_chimp_02'), 0, i, -2.0, selected_attacker_wep)
         end
         success('Attackers sent after ' .. players.get_name(pid))
     end) 
     
-    attackers_root:action("One punch man", {}, "", function()
-        local boxer = send_attacker_after_player(pid, util.joaat('mp_m_freemode_01'), 0, 0)
-        SET_PED_ACCURACY(boxer, 100)
-        SET_PED_CAN_RAGDOLL(boxer, false)
-        SET_PED_COMBAT_ABILITY(boxer, 3)
-        SET_ENTITY_HEALTH(boxer, 300.0, 1)
-        SET_PED_SUFFERS_CRITICAL_HITS(boxer, false)
-        SET_COMBAT_FLOAT(boxer, 7, 1.0)
-        SET_COMBAT_FLOAT(boxer, 6, 100.0)
-        SET_COMBAT_FLOAT(boxer, 29, 1000.0)
-        SET_COMBAT_FLOAT(boxer, 19, 0.0)
-        SET_COMBAT_FLOAT(boxer, 20, 0.0)
-        GIVE_WEAPON_TO_PED(boxer, util.joaat("weapon_knuckle"), 1, false, true)
-        success('One punch man sent after ' .. players.get_name(pid))
+    special_atk_root:action("One punch man", {}, "", function()
+        for i=1, num_attackers do
+            local data = send_attacker_after_player(pid, util.joaat('mp_m_freemode_01'), 0, 0, -2.0, i)
+            local boxer = data.ped
+            SET_PED_ACCURACY(boxer, 100)
+            SET_PED_CAN_RAGDOLL(boxer, false)
+            SET_PED_COMBAT_ABILITY(boxer, 3)
+            SET_ENTITY_HEALTH(boxer, 300.0, 1)
+            SET_PED_SUFFERS_CRITICAL_HITS(boxer, false)
+            SET_COMBAT_FLOAT(boxer, 7, 1.0)
+            SET_COMBAT_FLOAT(boxer, 6, 100.0)
+            SET_COMBAT_FLOAT(boxer, 29, 1000.0)
+            SET_COMBAT_FLOAT(boxer, 19, 0.0)
+            SET_COMBAT_FLOAT(boxer, 20, 0.0)
+            GIVE_WEAPON_TO_PED(boxer, util.joaat("weapon_knuckle"), 1, false, true)
+            success('One punch man sent after ' .. players.get_name(pid))
+        end
     end)
 
     plane_attackers_root:action("Scramble A-10", {}, "", function()
-        send_attacker_after_player(pid, util.joaat('s_m_m_pilot_02'), util.joaat('strikeforce'), 0)
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_pilot_02'), util.joaat('strikeforce'), 0, -10.0, i+30)
+        end
     end)
 
     plane_attackers_root:action("Scramble Lazer", {}, "", function()
-        send_attacker_after_player(pid, util.joaat('s_m_m_pilot_02'), util.joaat('lazer'), 0)
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_pilot_02'), util.joaat('lazer'), -10.0, -50.0, i+30)
+        end
     end)
 
-    plane_attackers_root:action("Scramble Nokota", {}, "", function()
-        send_attacker_after_player(pid, util.joaat('s_m_m_pilot_02'), util.joaat('nokota'), 0)
+    plane_attackers_root:action("Bombing run", {}, "", function()
+        local v_hash = util.joaat('volatol')
+        util.request_model(v_hash, 2000)
+        local p_ped = pid_to_ped(pid)
+        local c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(p_ped, 0.0, -20.0, 100.0)
+        local atk = spawn_ped_for_blame(c)
+        local veh = entities.create_vehicle(v_hash, c, GET_ENTITY_HEADING(p_ped))
+        SET_VEHICLE_ENGINE_ON(veh, true, true, false)
+        SET_VEHICLE_FORWARD_SPEED(veh, GET_VEHICLE_ESTIMATED_MAX_SPEED(veh))
+        local player_c = players.get_position(pid)
+        OPEN_BOMB_BAY_DOORS(veh)
+        SET_VEHICLE_BOMB_AMMO(veh, 999)
+        local bomb_hash = util.joaat('VEHICLE_WEAPON_BOMB')
+        --util.request_model(bomb_hash, 2000)
+        REQUEST_WEAPON_ASSET(bomb_hash, 31, 0)
+        local bomb_mdl = 'w_smug_bomb_01'
+        util.request_model(bomb_mdl, 2000)
+
+        local atk = spawn_ped_for_blame(c)
+        for i=1, 100 do
+            atk_c = GET_ENTITY_COORDS(veh, true)
+            local p_pos = players.get_position(pid)
+            SHOOT_SINGLE_BULLET_BETWEEN_COORDS(atk_c.x, atk_c.y, atk_c.z - 5.0, p_pos.x, p_pos.y, p_pos.z, 100.0, true, bomb_hash, atk, true, false, 100.0)
+            util.yield(200)
+        end
+        entities.delete(atk)
+        entities.delete(veh)
     end)
 
-    plane_attackers_root:action("Scramble Raiju", {}, "", function()
-        send_attacker_after_player(pid, util.joaat('s_m_m_pilot_02'), util.joaat('raiju'), 0)
+    plane_attackers_root:action("Nokota", {}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_pilot_02'), util.joaat('nokota'), i*3, 0, 0)
+        end
     end)
+
+    plane_attackers_root:action("Raiju", {}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_pilot_02'), util.joaat('raiju'), 0,  i*3, 0)
+        end
+    end)
+
+    plane_attackers_root:action("Input model", {'doloscustompatk'}, "", function()
+        menu.show_command_box('doloscustompatk'  .. players.get_name(pid) .. ' ')
+    end, function(entry)
+        local entry = util.joaat(entry)
+        if not IS_MODEL_VALID(entry) then
+            fail('Invalid model name')
+            return
+        end
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_pilot_02'), entry, i*3, 0, 0)
+        end
+    end)
+
+
 
     car_attackers_root:action("Oppressor MKII", {}, "", function()
-        send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('oppressor2'), 0)
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('oppressor2'), 0, -i * 1.5, 0)
+        end
     end)
 
     car_attackers_root:action("Khanjali", {}, "", function()
-        send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('khanjali'), 0)
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('khanjali'), 0, -i * 1.5, 0)
+        end
     end)
 
     car_attackers_root:action("T20", {}, "", function()
-        send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('t20'), 0)
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('t20'), 0, -i * 1.5, selected_attacker_wep)
+        end
+    end)
+
+    car_attackers_root:action("Input model", {'doloscustomcatk'}, "", function()
+        menu.show_command_box('doloscustomcatk' .. players.get_name(pid) .. ' ')
+    end, function(entry)
+        local entry = util.joaat(entry)
+        if not IS_MODEL_VALID(entry) then
+            fail('Invalid model name')
+            return
+        end
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), entry, 0, -i * 1.5, selected_attacker_wep)
+        end
     end)
 
 
-    attackers_root:action("Giant bunny attack", {}, "", function()
+    special_atk_root:action("Giant bunny attack", {}, "", function()
         for i=-3, 3 do
-            send_attacker_after_player(pid, util.joaat('a_c_rabbit_02'), 0, i)
+            send_attacker_after_player(pid, util.joaat('a_c_rabbit_02'), 0, -i * 0.5, -2.0, 0)
         end
         success('Attackers sent after ' .. players.get_name(pid))
     end)
 
-    attackers_root:action("Hell hounds", {}, "", function()
+    special_atk_root:action("Hell hounds", {}, "", function()
         for i=-3, 3 do
-            local boxer = send_attacker_after_player(pid, util.joaat('a_c_coyote_02'), 0, i)
+            local data = send_attacker_after_player(pid, util.joaat('a_c_coyote_02'), 0, 0, -i * 0.5, 0)
+            local boxer = data.ped
             SET_ENTITY_HEALTH(boxer, 300, 0)
             SET_PED_ACCURACY(boxer, 100)
             SET_PED_CAN_RAGDOLL(boxer, false)
@@ -1530,9 +1676,10 @@ function set_up_player_actions(pid)
         success('Attackers sent after ' .. players.get_name(pid))
     end)
 
-    attackers_root:action("Zombie attack", {}, "", function()
+    special_atk_root:action("Zombie attack", {}, "", function()
         for i=-3, 3 do
-            local boxer = send_attacker_after_player(pid, util.joaat('U_M_Y_Zombie_01'), 0, i)
+            local data = send_attacker_after_player(pid, util.joaat('U_M_Y_Zombie_01'), 0, 0, -i*0.5, 0)
+            local boxer = data.ped
             SET_ENTITY_HEALTH(boxer, 300, 0)
             SET_PED_ACCURACY(boxer, 100)
             SET_PED_CAN_RAGDOLL(boxer, false)
@@ -1549,10 +1696,67 @@ function set_up_player_actions(pid)
     end)
     
     
-    attackers_root:action("Hobo shank", {'hoboshank'}, "", function()
-        local atk = send_attacker_after_player(pid, util.joaat('a_m_o_tramp_01'), 0, 0)
-        GIVE_WEAPON_TO_PED(atk, util.joaat('weapon_knife'), 9999, false, false)
-        success('Attacker sent after ' .. players.get_name(pid))
+    infantry_root:action("Hobo shank", {'hoboshank'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('a_m_o_tramp_01'), 0, 0, -i * 0.2, util.joaat('weapon_knife'))
+        end
+    end)
+
+
+    infantry_root:action("Discord mod", {'dcmod'}, "", function()
+        for i=1, num_attackers do
+            local data = send_attacker_after_player(pid, util.joaat('IG_RoosterMcCraw'), 0, 0, -i * 0.2, 0)
+            SET_ENTITY_HEALTH(data.ped, 100.0, 0)
+        end
+    end)
+
+    
+    infantry_root:action("Grinch", {'grinch'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('U_M_M_YuleMonster'), 0, 0, -i * 0.2, 0)
+        end
+    end)
+
+    infantry_root:action("Post Malone", {'malone'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, -244824852, 0, 0, -i * 0.2, 0)
+        end
+    end)
+
+    infantry_root:action("Furry", {'uwu'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid,  0x50262DB9, 0, 0, -i * 0.2, 0)
+        end
+    end)
+
+    infantry_root:action("Dr. Dre mothafucka", {'uwu'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, 2275358319, 0, 0, -i * 0.2, 0)
+        end
+    end)
+
+    infantry_root:action("Hash Slinging Slasher", {'slasherped'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('G_M_M_Slasher_01'), 0, 0, -i * 0.2, util.joaat('weapon_knife'))
+        end
+    end)
+
+    infantry_root:action("Luchadora", {'luchadora'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('CSB_Luchadora'), 0, 0, -i * 0.2, util.joaat('weapon_knife'))
+        end
+    end)
+
+    infantry_root:action("Boomer", {'boomer'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, 1006915658, 0, 0, -i * 0.2, util.joaat('weapon_knife'))
+        end
+    end)
+
+    infantry_root:action("Drippy grandma", {'grandma'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, 2630685688, 0, 0, -i * 0.2, util.joaat('weapon_knife'))
+        end
     end)
 
     npc_root:action("Spawn naughty chop", {}, "", function()
@@ -1815,12 +2019,11 @@ function set_up_player_actions(pid)
         local cage_hash = util.joaat('v_ret_fh_doorframe')
         util.request_model(cage_hash, 2000)
         local c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(pid_to_ped(pid), 0, 0, 0)
-        for i=0, 270, 60 do
+        for i=0, 270, 50 do
             local pt = entities.create_object(cage_hash, c)
             SET_ENTITY_HEADING(pt, i)
         end
     end)
-
     --World > Editor > Spawner > prop_container_05a
 
 
@@ -2245,7 +2448,7 @@ function set_up_player_actions(pid)
         TASK_START_SCENARIO_IN_PLACE(hooker, "WORLD_HUMAN_PROSTITUTE_HIGH_CLASS", 0, false)
     end)
 
-    npc_root:action("Firetruck sprinkler    ", {}, "", function(on_input)
+    npc_root:action("Firetruck sprinkler", {}, "", function(on_input)
         local v_hash = util.joaat('firetruk')
         local p_hash = util.joaat("S_M_Y_Fireman_01")
         local p_ped = pid_to_ped(pid)
@@ -2255,6 +2458,33 @@ function set_up_player_actions(pid)
                 
         local truck = entities.create_vehicle(v_hash, c, GET_ENTITY_HEADING(p_ped))
         SET_VEHICLE_SIREN(truck, true)
+        SET_ENTITY_HEADING(truck, GET_ENTITY_HEADING(p_ped) + 90)
+        SET_VEHICLE_ENGINE_ON(truck, true, true, false)
+        SET_VEHICLE_WEAPON_CAN_TARGET_OBJECTS(truck, true)
+        SET_VEHICLE_DOORS_LOCKED(truck, 2)
+        local ped = entities.create_ped(1, p_hash, c, GET_ENTITY_HEADING(p_ped))
+        SET_PED_COMBAT_ATTRIBUTES(ped, 5, true)
+        SET_PED_FLEE_ATTRIBUTES(ped, 0, false)
+        SET_PED_COMBAT_ATTRIBUTES(ped, 46, true)            
+        TASK_COMBAT_PED(ped, p_ped, 0, 16)
+        SET_PED_INTO_VEHICLE(ped, truck, -1)
+        SET_TASK_VEHICLE_CHASE_BEHAVIOR_FLAG(ped, 1, true)
+        SET_TASK_VEHICLE_CHASE_IDEAL_PURSUIT_DISTANCE(ped, 10.0)
+        TASK_VEHICLE_CHASE(ped, p_ped)
+        firefighter_thread(ped, p_ped, truck)
+        SET_ENTITY_INVINCIBLE(ped, true)
+        SET_ENTITY_INVINCIBLE(truck, true)
+    end)
+
+        npc_root:action("RCV sprinkler", {}, "", function(on_input)
+        local v_hash = util.joaat('riot2')
+        local p_hash = util.joaat("s_m_y_swat_01")
+        local p_ped = pid_to_ped(pid)
+        local c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(p_ped, 0.0, -10.0, 0.0)
+        util.request_model(p_hash, 2000)
+        util.request_model(v_hash, 2000)
+                
+        local truck = entities.create_vehicle(v_hash, c, GET_ENTITY_HEADING(p_ped))
         SET_ENTITY_HEADING(truck, GET_ENTITY_HEADING(p_ped) + 90)
         SET_VEHICLE_ENGINE_ON(truck, true, true, false)
         SET_VEHICLE_WEAPON_CAN_TARGET_OBJECTS(truck, true)
