@@ -1645,7 +1645,7 @@ function set_up_player_actions(pid)
             return
         end
         for i=1, num_attackers do
-            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), entry, 0, -i * 1.5, selected_attacker_wep)
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), entry, 0, -i * 5.0, selected_attacker_wep)
         end
     end)
 
