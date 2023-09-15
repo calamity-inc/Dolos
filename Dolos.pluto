@@ -1698,14 +1698,14 @@ function set_up_player_actions(pid)
     
     infantry_root:action("Hobo shank", {'hoboshank'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, util.joaat('a_m_o_tramp_01'), 0, 0, -i * 0.2, util.joaat('weapon_knife'))
+            send_attacker_after_player(pid, util.joaat('a_m_o_tramp_01'), 0, 0, -i * 0.05, util.joaat('weapon_knife'))
         end
     end)
 
 
     infantry_root:action("Discord mod", {'dcmod'}, "", function()
         for i=1, num_attackers do
-            local data = send_attacker_after_player(pid, util.joaat('IG_RoosterMcCraw'), 0, 0, -i * 0.2, 0)
+            local data = send_attacker_after_player(pid, util.joaat('IG_RoosterMcCraw'), 0, 0, -i * 0.05, 0)
             SET_ENTITY_HEALTH(data.ped, 100.0, 0)
         end
     end)
@@ -1713,49 +1713,49 @@ function set_up_player_actions(pid)
     
     infantry_root:action("Grinch", {'grinch'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, util.joaat('U_M_M_YuleMonster'), 0, 0, -i * 0.2, 0)
+            send_attacker_after_player(pid, util.joaat('U_M_M_YuleMonster'), 0, 0, -i * 0.05, 0)
         end
     end)
 
     infantry_root:action("Post Malone", {'malone'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, -244824852, 0, 0, -i * 0.2, 0)
+            send_attacker_after_player(pid, -244824852, 0, 0, -i * 0.05, 0)
         end
     end)
 
     infantry_root:action("Furry", {'uwu'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid,  0x50262DB9, 0, 0, -i * 0.2, 0)
+            send_attacker_after_player(pid,  0x50262DB9, 0, 0, -i * 0.05, 0)
         end
     end)
 
     infantry_root:action("Dr. Dre mothafucka", {'uwu'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, 2275358319, 0, 0, -i * 0.2, 0)
+            send_attacker_after_player(pid, 2275358319, 0, 0, -i * 0.05, 0)
         end
     end)
 
     infantry_root:action("Hash Slinging Slasher", {'slasherped'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, util.joaat('G_M_M_Slasher_01'), 0, 0, -i * 0.2, util.joaat('weapon_knife'))
+            send_attacker_after_player(pid, util.joaat('G_M_M_Slasher_01'), 0, 0, -i * 0.05, util.joaat('weapon_knife'))
         end
     end)
 
     infantry_root:action("Luchadora", {'luchadora'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, util.joaat('CSB_Luchadora'), 0, 0, -i * 0.2, util.joaat('weapon_knife'))
+            send_attacker_after_player(pid, util.joaat('CSB_Luchadora'), 0, 0, -i * 0.05, selected_attacker_wep)
         end
     end)
 
     infantry_root:action("Boomer", {'boomer'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, 1006915658, 0, 0, -i * 0.2, util.joaat('weapon_knife'))
+            send_attacker_after_player(pid, 1006915658, 0, 0, -i * 0.05, selected_attacker_wep)
         end
     end)
 
     infantry_root:action("Drippy grandma", {'grandma'}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, 2630685688, 0, 0, -i * 0.2, util.joaat('weapon_knife'))
+            send_attacker_after_player(pid, 2630685688, 0, 0, -i * 0.05, selected_attacker_wep)
         end
     end)
 
@@ -2622,3 +2622,6 @@ players.dispatch_on_join()
 
 menu.my_root():divider('')
 menu.my_root():hyperlink('Join Discord', 'https://discord.gg/zZ2eEjj88v', '')
+
+
+
