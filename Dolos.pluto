@@ -1475,11 +1475,17 @@ local weapon_hashes = {}
 weapon_names[1] = 'Unarmed'
 weapon_hashes[1] = 0
 
+local blacklist = {883325847, 3126027122, 406929569, 4256881901, 28811031, 2481070269, 741814745, 4256991824, 2694266206, 615608432, 600439132, 1233104067, 1834887169, -135142818, 2874559379, 126349499, 3125143736}
+
 for util.get_weapons() as w do 
+    if table.contains(blacklist, w.hash) then 
+        continue 
+    end
     local name = util.get_label_text(w.label_key)
     if table.contains(weapon_names, name) then 
         name = name .. ' ' .. tostring(count_occurrences(weapon_names, name)) + 1
     end
+
     weapon_names[#weapon_names+1] = name
     weapon_hashes[#weapon_hashes+1] = w.hash
 end
@@ -1645,7 +1651,7 @@ function set_up_player_actions(pid)
             return
         end
         for i=1, num_attackers do
-            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), entry, 0, -i * 5.0, selected_attacker_wep)
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), entry, 0, -i * 20.0, selected_attacker_wep)
         end
     end)
 
