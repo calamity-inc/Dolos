@@ -1147,7 +1147,7 @@ end, function(on_command)
             give_player_vehicle(pid, on_command)
         end
 
-        success('Gave everyone a(n) ' .. typed)
+        success('Vehicles spawned')
 end)
 
 local ap_give_root_cars = ap_give_root:list('Ground Vehicles')
@@ -1822,7 +1822,11 @@ function set_up_player_actions(pid)
             return 
         end
         give_player_vehicle(pid, on_command)
-        success('Gave ' .. players.get_name(pid) .. ' a(n) ' .. first_to_upper(typed))
+        if string.startswith(string.lower(typed), 'a') then
+            success('Gave ' .. players.get_name(pid) .. ' an ' .. first_to_upper(typed))
+        else
+            success('Gave ' .. players.get_name(pid) .. ' a ' .. first_to_upper(typed))
+        end
     end)
 
     local give_root_cars = give_root:list('Ground vehicles', {}, '')
@@ -1832,39 +1836,39 @@ function set_up_player_actions(pid)
     give_root_cars:action('Random', {'giverandomcar'}, '', function()
         local rand_pick = CARS[math.random(#CARS)]
         give_player_vehicle(pid, util.joaat(rand_pick))
-        success('Gave ' .. players.get_name(pid) .. ' a(n) ' .. rand_pick)
+        success('Vehicle spawned')
     end)
 
     for CARS as mdl do 
         give_root_cars:action(mdl, {'dolosgivecar' .. mdl}, '', function()
             give_player_vehicle(pid, util.joaat(mdl))
-            success('Gave ' .. players.get_name(pid) .. ' a(n) ' .. mdl)
+            
         end)
     end
 
     give_root_planes:action('Random', {'giverandomplane'}, '', function()
         local rand_pick = PLANES[math.random(#PLANES)]
         give_player_vehicle(pid, util.joaat(rand_pick))
-        success('Gave ' .. players.get_name(pid) .. ' a(n) ' .. rand_pick)
+        success('Vehicle spawned')
     end)
 
     for PLANES as mdl do 
         give_root_planes:action(mdl, {'dolosgiveplane' .. mdl}, '', function()
             give_player_vehicle(pid, util.joaat(mdl))
-            success('Gave ' .. players.get_name(pid) .. ' a(n) ' .. mdl)
+            success('Vehicle spawned')
         end)
     end
 
     give_root_boats:action('Random', {'giverandomboat'}, '', function()
         local rand_pick = BOATS[math.random(#BOATS)]
         give_player_vehicle(pid, util.joaat(rand_pick))
-        success('Gave ' .. players.get_name(pid) .. ' a(n) ' .. rand_pick)
+        success('Vehicle spawned')
     end)
 
     for BOATS as mdl do 
         give_root_boats:action(mdl, {'dolosgiveboat' .. mdl}, '', function()
             give_player_vehicle(pid, util.joaat(mdl))
-            success('Gave ' .. players.get_name(pid) .. ' a(n) ' .. mdl)
+            success('Vehicle spawned')
         end)
     end
 
