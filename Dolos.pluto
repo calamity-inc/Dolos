@@ -2314,6 +2314,7 @@ function set_up_player_actions(pid)
             while GET_VEHICLE_PED_IS_IN(ped, false) ~= tar_veh do
                 if os.time() - st_time >= 5 then 
                     fail('Could not carjack in time.')
+                    entities.delete(ped)
                     return 
                 end
                 util.yield()
