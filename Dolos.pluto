@@ -37,9 +37,9 @@ function first_to_upper(str)
 end
 
 local ROOT = menu.my_root()
-ROOT:divider('DOLOS')
 local SELF_ROOT = ROOT:list('Self')
 local ONLINE_ROOT = ROOT:list('Online')
+local CHAT_ROOT = ONLINE_ROOT:list('Chat', {}, 'chat is this real')
 local VEHICLE_ROOT = ROOT:list('Vehicle')
 local WORLD_ROOT = ROOT:list('World')
 local trains_root = WORLD_ROOT:list("Trains", {'ostrains'}, '')
@@ -1238,6 +1238,30 @@ ONLINE_ROOT:toggle_loop('Sink Kosatkas', {}, 'Dive! Dive! Dive!', function()
     end
 end)
 
+function remove_extra_whitespace(str)
+    return str:gsub("%s+", " ")
+end
+
+CHAT_ROOT:toggle_loop('Cat facts', {'catfacts'}, 'Send important cat facts into chat every 10 seconds', function()
+    local fact = nil
+    if async_http.have_access() and util.is_session_started() then 
+        async_http.init('https://catfact.ninja', 'fact', function(request)
+            fact = soup.json.decode(request).fact
+        end)
+        async_http.dispatch()
+        local st_time = os.time()
+        while fact == nil do 
+            if os.time() - st_time >= 3 then 
+                break 
+            end
+            util.yield()
+        end
+        fact = remove_extra_whitespace(fact) 
+        chat.send_message('Cat fact!: ' .. fact, false, true, true)
+    end
+    util.yield(10000)
+end)
+
 local af_downforce = 0.0
 
 util.create_tick_handler(function()
@@ -1320,6 +1344,8 @@ util.create_tick_handler(function()
             util.request_model(duke_mdl_hash, 2000)
             duke_ped = entities.create_ped(28, duke_mdl_hash, players.get_position(players.user()), math.random(270))
             SET_ENTITY_INVINCIBLE(duke_ped, true)
+            SET_PED_CAN_BE_DRAGGED_OUT(duke_ped, false)
+            SET_PED_CAN_BE_KNOCKED_OFF_VEHICLE(duke_ped, 1)
             SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(duke_ped, true)
             SET_PED_CAN_RAGDOLL(duke_ped, false)    
             TASK_FOLLOW_TO_OFFSET_OF_ENTITY(duke_ped, players.user_ped(), 0, -1, 0, 7.0, -1, 1, true)
@@ -1501,9 +1527,8 @@ end
 
 function set_up_player_actions(pid)
     local all_attacker_ents = {}
-    local player_root = menu.player_root(pid) 
-    player_root:divider('Dolos Trolling')
-    --
+    local player_root = menu.shadow_root():list('DOLOS')
+    player_root = menu.player_root(pid):refByRelPath("Trolling"):getChildren()[1]:attachBefore(player_root)
     local veh_root = player_root:list("Vehicle", {}, '')
     local tp_root = player_root:list("Teleport to")
     local npc_root = player_root:list('NPCs')
@@ -1526,7 +1551,7 @@ function set_up_player_actions(pid)
                     entities.delete(entity)
                 end
             end
-            attackers_by_pid[pid] = {} -- Clear the list of attackers for this pid
+            attackers_by_pid[pid] = {}
             success('Attackers deleted')
         else
             fail('Player has no attackers')
@@ -2061,10 +2086,6 @@ function set_up_player_actions(pid)
 
 
     explosions_root:toggle_loop("Pharaoh\'s Curse", {}, "Return the slab or else...", function(on_input)
-        if players.is_marked_as_modder(pid) and detection_protection then 
-            fail('Target is a modder and detection protection is on.')
-            return
-        end
         local c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(pid_to_ped(pid), 0, 0, 0)
         ADD_EXPLOSION(c.x, c.y, c.z - 1.0, 24, 1.0, true, false, 0.0, true)
     end)
@@ -2262,6 +2283,9 @@ function set_up_player_actions(pid)
                     SET_PED_FLEE_ATTRIBUTES(npc, 0, false)
                     SET_PED_COMBAT_ATTRIBUTES(npc, 46, true)
                     SET_PED_AS_COP(npc, false)
+                    local weapon = util.joaat('weapon_pistol')
+                    REQUEST_WEAPON_ASSET(weapon, 31, 0)
+                    GIVE_WEAPON_TO_PED(npc, weapon, 9999, false, true)
                     break
                 end
             end
@@ -2414,6 +2438,21 @@ function set_up_player_actions(pid)
             fail('Target is not in a car')
         end
     end)
+
+    veh_root:action("Detach trailer", {}, "", function(on)
+        if players.is_marked_as_modder(pid) and detection_protection then 
+            fail('Target is a modder and detection protection is on.')
+            return
+        end
+        local car = GET_VEHICLE_PED_IS_IN(pid_to_ped(pid), true)
+        if car ~= 0 then
+            request_control_of_entity(car)
+            DETACH_VEHICLE_FROM_TRAILER(car)
+            DETACH_CONTAINER_FROM_HANDLER_FRAME(car)
+        else
+            fail('Target is not in a car')
+        end
+    end)
     
     veh_root:toggle("Gravity", {}, "", function(on)
         if players.is_marked_as_modder(pid) and detection_protection then 
@@ -2512,7 +2551,7 @@ function set_up_player_actions(pid)
         SET_ENTITY_INVINCIBLE(truck, true)
     end)
 
-        npc_root:action("RCV sprinkler", {}, "", function(on_input)
+    npc_root:action("RCV sprinkler", {}, "", function(on_input)
         local v_hash = util.joaat('riot2')
         local p_hash = util.joaat("s_m_y_swat_01")
         local p_ped = pid_to_ped(pid)
@@ -2539,6 +2578,24 @@ function set_up_player_actions(pid)
         firefighter_thread(ped, p_ped, truck)
         SET_ENTITY_INVINCIBLE(ped, true)
         SET_ENTITY_INVINCIBLE(truck, true)
+    end)
+
+    npc_root:action("Plane crash", {}, "", function(on_input)
+        local p_hash = util.joaat('s_m_m_pilot_02')
+        local v_hash = util.joaat('jet')
+        util.request_model(p_hash, 2000)
+        local p_ped = pid_to_ped(pid)
+        local c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(p_ped, 0.0, 500.0, 50.0)
+        util.request_model(v_hash, 2000)
+        local plane = entities.create_vehicle(v_hash, c, GET_ENTITY_HEADING(p_ped)+180)
+        local ped = entities.create_ped(1, p_hash, c, GET_ENTITY_HEADING(p_ped))
+        SET_PED_INTO_VEHICLE(ped, plane, -1)
+        SET_VEHICLE_LIGHTS(plane, 2)
+        CONTROL_LANDING_GEAR(plane, 3)
+        SET_PLANE_ENGINE_HEALTH(plane, 0.0)
+        SET_VEHICLE_ENGINE_ON(plane, true, true, false)
+        SET_VEHICLE_FORWARD_SPEED(plane, 100.0)
+        SET_VEHICLE_OUT_OF_CONTROL(plane, true, true)
     end)
 
     npc_root:action("Spawn dancing Lesters", {}, "", function()
@@ -2646,19 +2703,9 @@ function lang_num_to_name(num)
 end
 
 
-players.on_join(function(pid)
-    if players.get_name(pid) == "UndiscoveredPlayer" then 
-        util.yield()
-    end
-
-    set_up_player_actions(pid)
-
-end)
-
-players.dispatch_on_join()
+players.add_command_hook(set_up_player_actions)
 
 
-menu.my_root():divider('')
 menu.my_root():hyperlink('Join Discord', 'https://discord.gg/zZ2eEjj88v', '')
 
 
