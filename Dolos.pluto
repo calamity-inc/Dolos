@@ -9,7 +9,7 @@
 -- coded by Lance/stonerchrist on Discord
 util.require_natives("2944b", "g")
 
--- DOLOS, THE SPIRIT OF TRICKERY
+-- Dolos, THE SPIRIT OF TRICKERY
 
 local fource_sound_off = false
 local resources_dir =  filesystem.resources_dir() .. '\\dolos\\'
@@ -96,7 +96,7 @@ FAKE_ALERTS_ROOT:text_input('Fake suspension date', {'fakealertdate'}, '', funct
     fake_suspend_date = on_input
 end, fake_suspend_date)
 
-local custom_alert = "DOLOS on top!"
+local custom_alert = "Dolos on top!"
 FAKE_ALERTS_ROOT:text_input('Custom alert text', {'fakealerttext'}, '', function(on_input)
     custom_alert = on_input
 end, custom_alert)
@@ -150,7 +150,7 @@ end
 
 local function fail(message)
     if feedback then 
-        util.toast('[DOLOS] Problem: ' .. message)
+        util.toast('[Dolos] Problem: ' .. message)
         if sound then 
             playWav(resources_dir .. '\\fail.wav')
         end
@@ -158,7 +158,7 @@ local function fail(message)
 end
 
 local function success(message)
-    util.toast('[DOLOS] Success: ' .. message)
+    util.toast('[Dolos] Success: ' .. message)
     if feedback then
         if sound then 
             playWav(resources_dir .. '\\success.wav')
@@ -167,7 +167,7 @@ local function success(message)
 end
 
 local function processing(message)
-    util.toast('[DOLOS] Processing: ' .. message)
+    util.toast('[Dolos] Processing: ' .. message)
     if feedback then
         if sound then 
             playWav(resources_dir .. '\\processing.wav')
@@ -176,7 +176,7 @@ local function processing(message)
 end
 
 local function alert(message)
-    util.toast('[DOLOS] Attention: ')
+    util.toast('[Dolos] Attention: ')
     if sound then 
         playWav(resources_dir .. '\\processing.wav')
     end
@@ -491,7 +491,7 @@ local function randomize_car_mods(veh)
     local rand_b = math.random(0, 255)
     SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(veh, rand_r, rand_g, rand_g)
     SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(veh, rand_r, rand_g, rand_g)
-    SET_VEHICLE_NUMBER_PLATE_TEXT(veh, 'DOLOS')
+    SET_VEHICLE_NUMBER_PLATE_TEXT(veh, 'Dolos')
     SET_VEHICLE_ENGINE_HEALTH(veh, 10000.0)
     SET_VEHICLE_BODY_HEALTH(veh, 10000.0)
     SET_VEHICLE_FIXED(veh)
@@ -1527,7 +1527,7 @@ end
 
 function set_up_player_actions(pid)
     local all_attacker_ents = {}
-    local player_root = menu.shadow_root():list('DOLOS')
+    local player_root = menu.shadow_root():list('Dolos')
     player_root = menu.player_root(pid):refByRelPath("Trolling"):getChildren()[1]:attachBefore(player_root)
     local veh_root = player_root:list("Vehicle", {}, '')
     local tp_root = player_root:list("Teleport to")
