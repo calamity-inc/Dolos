@@ -532,9 +532,9 @@ local function upgrade_car(veh)
     --menu.trigger_commands('upgradeveh' .. players.get_name(pid))
     request_control_of_entity(veh)
     SET_VEHICLE_FIXED(veh)
-    for i=0, 47 do
+    for i=0, 49 do
         num = GET_NUM_VEHICLE_MODS(veh, i)
-        SET_VEHICLE_MOD(veh, i, num -1, true)
+        SET_VEHICLE_MOD(veh, i, GET_NUM_VEHICLE_MODS(veh, i) - 1, true)
     end
 end
 
@@ -547,7 +547,7 @@ function play_anim(ped, dict, name, duration)
     TASK_PLAY_ANIM(ped, dict, name, 1.0, 1.0, duration, 3, 0.5, false, false, false)
 end
 
-function send_naughty_chop(pid)
+function send_naughty_chop(pid, option)
     local voice_name = HOOKER_VOICES[math.random(1, #HOOKER_VOICES)]
     local ped1_mdl = util.joaat('a_c_chop')
     local ped2_mdl = util.joaat('ig_lamardavis')
@@ -562,7 +562,13 @@ function send_naughty_chop(pid)
     local ped1 = entities.create_ped(28, ped1_mdl, c1, 30.0)
     SET_ENTITY_INVINCIBLE(ped1, true)
     play_anim(ped1, 'missfra0_chop_find', 'hump_loop_chop', -1)
-    local ped2 = entities.create_ped(28, ped2_mdl, c1, 30.0)
+    local ped2
+    if option == 2 then 
+        ped2 = CLONE_PED(pid_to_ped(pid), true, false, true)
+        SET_ENTITY_COORDS(ped2, c1.x, c1.y, c1.z, true, true, true, false)
+    else
+        ped2 = CREATE_RANDOM_PED(c1.x, c1.y, c1.z)
+    end
     SET_ENTITY_INVINCIBLE(ped2, true)
     play_anim(ped2, 'rcmpaparazzo_2', 'shag_loop_poppy', -1)
     ATTACH_ENTITY_TO_ENTITY(ped1, ped2, 0, 0, -0.3, 0, 0, 0, 0, true, false, true, true, 0, false, 0)
@@ -584,7 +590,7 @@ function send_naughty_chop(pid)
     end)
 end
 
-function send_naughty_chimp(pid)
+function send_naughty_chimp(pid, option)
     local voice_name = HOOKER_VOICES[math.random(1, #HOOKER_VOICES)]
     local speeches = {
         "SEX_GENERIC_FEM",
@@ -598,9 +604,16 @@ function send_naughty_chimp(pid)
     local ped_2_hash = util.joaat('a_c_chimp')
     util.request_model(ped_1_hash, 2000)
     util.request_model(ped_2_hash, 2000)
-    local ped1 = entities.create_ped(28, ped_1_hash, c1, 30.0)
+    local ped1
+    if option == 2 then 
+        ped1 = CLONE_PED(pid_to_ped(pid), true, false, true)
+        SET_ENTITY_COORDS(ped1, c1.x, c1.y, c1.z, true, true, true, false)
+    else
+        ped1 = CREATE_RANDOM_PED(c1.x, c1.y, c1.z)
+    end
     SET_ENTITY_INVINCIBLE(ped1, true)
     play_anim(ped1, 'rcmpaparazzo_2', 'shag_loop_a', -1)
+
     local ped2 = entities.create_ped(28, ped_2_hash, c1, 30.0)
     SET_ENTITY_INVINCIBLE(ped2, true)
     play_anim(ped2, 'rcmpaparazzo_2', 'shag_loop_poppy', -1)
@@ -963,10 +976,11 @@ SELF_ROOT:toggle('Infinite stairs', {}, '', function(on)
     end
 end)
 
-SELF_ROOT:action('Make me dance', {}, '', function()
+SELF_ROOT:toggle_loop('Dance', {}, '', function(on)
     local ped = players.user_ped()
     local rand = DANCE_ANIMATIONS[math.random(#DANCE_ANIMATIONS)]
     play_anim(ped, rand[1], rand[2], -1)
+    util.yield(math.random(1000, 10000))
 end)
 
 SELF_ROOT:action('Stop animations', {}, '', function()
@@ -1034,7 +1048,7 @@ SELF_ROOT:textslider("Hit bong", {"hitbong"}, "", {"Hit", "Sober up"}, function(
 end)
 
 local function find_a_train()
-    for _, v in pairs(entities.get_all_vehicles_as_pointers()) do
+    for entities.get_all_vehicles_as_pointers() as v do
         if entities.get_model_hash(v) == util.joaat('freight') then
             local hdl = entities.pointer_to_handle(v)
             return hdl
@@ -1160,7 +1174,7 @@ ap_give_root_cars:action('Random', {}, '', function()
     end
 end)
 
-for _, mdl in pairs(CARS) do 
+for CARS as mdl do 
     ap_give_root_cars:action(mdl, {}, '', function()
         for players.list(false, true, true) as pid do
             give_player_vehicle(pid, util.joaat(mdl))
@@ -1467,6 +1481,42 @@ WORLD_ROOT:toggle_loop("Fish rain", {'fishrain'}, '', function()
     util.yield(500)
 end)
 
+WORLD_ROOT:toggle_loop('Laser show', {"lasershow"}, '', function(on)
+    local ped = players.user_ped()
+    local weaponHash = util.joaat("weapon_heavysniper_mk2")
+    local dictionary = "weap_xs_weapons"
+    local ptfx_name = "bullet_tracer_xs_sr"
+    request_ptfx_asset(dictionary)
+    USE_PARTICLE_FX_ASSET(dictionary)
+    SET_PARTICLE_FX_NON_LOOPED_COLOUR(math.random(255), math.random(255), math.random(255))
+    local pos = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped, math.random(-100, 100), math.random(-100, 100), 100)
+    START_NETWORKED_PARTICLE_FX_NON_LOOPED_AT_COORD(ptfx_name, pos.x, pos.y, pos.z, 90, math.random(360), 0.0, 1.0, true, true, true, true)
+end)
+WORLD_ROOT:action('Obstruct auto shop entrances', {}, '', function()
+    local positions = {
+        {pos = v3.new({x=-356.07437, y=-134.72017, z=39.013176}), hdg=70},
+        {pos = v3.new({x=114.34137, y=6623.406, z=31.787334}), hdg = 45},
+        {pos = v3.new({x=108.77279, y=6617.7974, z=31.78727}), hdg = 45},
+        {pos = v3.new({x=1174.5552, y=2645.151, z=37.757435}), hdg = 0},
+        {pos = v3.new({x=1182.4735, y=2645.2222, z=37.80996}), hdg = 0},
+        {pos = v3.new({x=-1144.6978, y=-1992.4098, z=13.180252}), hdg = -45}
+        --108.77279, 6617.7974, 31.78727
+    }
+    local prop_hash = util.joaat('hei_prop_ss1_mpint_garage2')
+    util.request_model(prop_hash, 2000)
+    for positions as p do
+        local pos = p.pos
+        local ent = entities.create_object(prop_hash, pos)
+        SET_ENTITY_HEADING(ent, p.hdg)
+        FREEZE_ENTITY_POSITION(ent, true)
+        pos.z += 2
+        ent = entities.create_object(prop_hash, pos)
+        SET_ENTITY_HEADING(ent, p.hdg)
+        FREEZE_ENTITY_POSITION(ent, true)
+    end
+    success('Done blocking entrances')
+end)
+
 
 function get_rand_player_ped() 
     local p_list = players.list(false, false, true)
@@ -1524,6 +1574,26 @@ for util.get_weapons() as w do
     weapon_hashes[#weapon_hashes+1] = w.hash
 end
 
+function dramatic_mode(veh)
+    util.create_thread(function()
+        local initial_health = GET_ENTITY_HEALTH(veh)
+        while true do
+            if GET_ENTITY_HEALTH(veh) < initial_health then 
+                local c = GET_ENTITY_COORDS(veh)
+                ADD_EXPLOSION(c.x, c.y, c.z, 17, 100.0, true, false, 1.0, false)
+                break
+            end
+            util.yield()
+        end
+    end)
+end
+
+function delete_entity_after(ent, time)
+    util.create_thread(function()
+        util.yield(time)
+        entities.delete(ent)
+    end)
+end
 
 function set_up_player_actions(pid)
     local all_attacker_ents = {}
@@ -1674,19 +1744,19 @@ function set_up_player_actions(pid)
 
     car_attackers_root:action("Oppressor MKII", {}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('oppressor2'), 0, -i * 1.5, 0)
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('oppressor2'), 0, -i * 5, 0)
         end
     end)
 
     car_attackers_root:action("Khanjali", {}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('khanjali'), 0, -i * 1.5, 0)
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('khanjali'), 0, -i * 5, 0)
         end
     end)
 
     car_attackers_root:action("T20", {}, "", function()
         for i=1, num_attackers do
-            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('t20'), 0, -i * 1.5, selected_attacker_wep)
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('t20'), 0, -i * 5, selected_attacker_wep)
         end
     end)
 
@@ -1699,7 +1769,7 @@ function set_up_player_actions(pid)
             return
         end
         for i=1, num_attackers do
-            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), entry, 0, -i * 20.0, selected_attacker_wep)
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), entry, 0, -i * 5, selected_attacker_wep)
         end
     end)
 
@@ -1813,12 +1883,12 @@ function set_up_player_actions(pid)
         end
     end)
 
-    npc_root:action("Spawn naughty chop", {}, "", function()
-        send_naughty_chop(pid)
+    npc_root:textslider("Spawn naughty chop", {}, "", {'On random NPC', 'On player clone'}, function(index)
+        send_naughty_chop(pid, index)
     end)
     
-    npc_root:action("Spawn naughty chimp", {}, "", function()
-        send_naughty_chimp(pid)
+    npc_root:textslider("Spawn naughty chimp", {}, "", {'On random NPC', 'On player clone'}, function(index)
+        send_naughty_chimp(pid, index)
     end)
 
     npc_root:action("Spawn bicyclists", {}, "", function()
@@ -2082,6 +2152,22 @@ function set_up_player_actions(pid)
             SET_ENTITY_HEADING(pt, i)
         end
     end)
+
+    misc_trolls_root:toggle_loop("Earthquake", {'earthquake'}, "", function(on_input)
+        local rock_hashes = {util.joaat('rock_4_cl_2_1'), util.joaat('prop_ld_rubble_01'), util.joaat('prop_ld_rubble_03')}
+        local c = players.get_position(pid)
+        ADD_EXPLOSION(c.x, c.y, c.z, 63, 0.0, false, true, 1.0, true)
+        if math.random(1, 10) == 3 then 
+            local rand_pick_rock = rock_hashes[math.random(#rock_hashes)]
+            util.request_model(rand_pick_rock, 2000)
+            local offset = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(pid_to_ped(pid), math.random(-10, 10), math.random(-10, 10), 0)
+            local rock = entities.create_object(rand_pick_rock, offset)
+            APPLY_FORCE_TO_ENTITY(rock, 1, 0.0, 0.0, -0.2, 0.0, 0.0, 0.0, 0, true, false, true, true, true)
+            delete_entity_after(rock, 5000)
+        end
+        util.yield(100)
+    end)
+
     --World > Editor > Spawner > prop_container_05a
 
 
@@ -2322,14 +2408,9 @@ function set_up_player_actions(pid)
         end
         local tar_veh = GET_VEHICLE_PED_IS_IN(tar_ped, true) 
         if tar_veh ~= -1 then 
-            local c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(tar_veh, -2.0, 0, 0)
-            succ, new_z  = util.get_ground_z(c.x, c.y, c.z)
-
-            if success then 
-                c.z = new_z
-            end
-
+            local c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(tar_veh, 0.0, -1.0, 0.0)
             local ped = entities.create_ped(28, p_hash, c, GET_ENTITY_HEADING(tar_veh))
+            SET_PED_CAN_RAGDOLL(ped, false)
             SET_PED_CONFIG_FLAG(ped, 366, true)
             SET_ENTITY_INVINCIBLE(ped, true)
             SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
@@ -2398,6 +2479,16 @@ function set_up_player_actions(pid)
             fail('Target is not in a car')
         end
     end)
+    
+    veh_root:action('Make dramatic', {'dramatic'}, 'Sets the vehicle into a state whereas any decrease in health, even by 1, will result in the car exploding.', function()
+        local tar_veh = GET_VEHICLE_PED_IS_IN(pid_to_ped(pid), true) 
+        if tar_veh ~= 0 then 
+            dramatic_mode(tar_veh)
+            success('Dramatic mode set on ' .. players.get_name(pid))
+        else
+            fail('Target is not in a car')
+        end
+    end)
 
     local e_type = math.random(#EXPLOSIONS)
     explosions_root:list_select('Explosion type', {'dolosetype'}, '', EXPLOSIONS, e_type, function(explo)
@@ -2454,21 +2545,6 @@ function set_up_player_actions(pid)
         end
     end)
     
-    veh_root:toggle("Gravity", {}, "", function(on)
-        if players.is_marked_as_modder(pid) and detection_protection then 
-            fail('Target is a modder and detection protection is on.')
-            return
-        end
-        local car = GET_VEHICLE_PED_IS_IN(pid_to_ped(pid), true)
-        if car ~= 0 then
-            request_control_of_entity(car)
-            SET_VEHICLE_GRAVITY(car, on)
-            SET_ENTITY_HAS_GRAVITY(car, on)
-        else
-            fail('Target is not in a car')
-        end
-    end, true)
-
     function firefighter_thread(ped, p_ped, truck)
         SET_TASK_VEHICLE_CHASE_BEHAVIOR_FLAG(ped, 1, true)
         SET_TASK_VEHICLE_CHASE_IDEAL_PURSUIT_DISTANCE(ped, 10.0)
@@ -2708,5 +2784,10 @@ players.add_command_hook(set_up_player_actions)
 
 menu.my_root():hyperlink('Join Discord', 'https://discord.gg/zZ2eEjj88v', '')
 
+util.on_stop(function()
+    if duke_ped ~= nil then 
+        entities.delete(duke_ped)
+    end
+end)
 
 
