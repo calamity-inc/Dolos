@@ -122,7 +122,17 @@ local OBJECTS = {
     ['Stairs'] = {mdl = 'port_xr_stairs_01', hdg = 90, x_off = -8, y_off = -0.5, z_off = -1},
     ['Money Laundering'] = {mdl = 'bkr_prop_prtmachine_dryer_spin', hdg = 0, x_off = 0, y_off = 2, z_off = 0},
     ['Traffic Diverter'] = {mdl = 'prop_trafficdiv_01', hdg = 0, x_off = 0, y_off = 5, z_off = 0},
-    ['Crash Barrier'] = {mdl = 'prop_barriercrash_01', hdg = 180, x_off = 0, y_off = -10, z_off = 0}
+    ['Crash Barrier'] = {mdl = 'prop_barriercrash_01', hdg = 180, x_off = 0, y_off = -10, z_off = 0},
+    ['Wasteland'] = {mdl = 'xs_propint5_waste_08_ground', hdg = 180, x_off = 0, y_off = 0, z_off = -0.5},
+    ['Desert'] = {mdl = 'xs_terrain_dyst_ground_07', hdg = 180, x_off = 0, y_off = 0, z_off = -4.2},
+    ['Cow head'] = {mdl = 'v_ind_coo_heed', hdg = 180, x_off = 0, y_off = 2, z_off = 1},
+    ['Moving stop sign'] = {mdl = 'stt_prop_track_stop_sign', hdg = 90, x_off = 0, y_off = 2, z_off = 0},
+    ['Water'] = {mdl = 'id1_lod_water_slod3', hdg = 0, x_off = 0, y_off = 0, z_off = -8},
+    --stt_prop_track_stop_sign
+
+    --m23_1_prop_m31_barge_01
+
+    --World > Editor > Spawner > xs_terrain_dyst_ground_07
 }
 
 SETTINGS_ROOT:toggle('Detection protection', {}, 'Makes it so you won\'t send events **from this script** to modders that are likely to be detected by them. This may affect the performance and quality of some functions', function(on)
@@ -302,7 +312,7 @@ local EXPLOSIONS = {
 local LOCATIONS = {
     {name = "World 0, 0, 0", x = 0.0, y = 0.0, z = 0.0},
     {name = "Mount Chiliad", x = 496.0635, y = 5584.5142, z = 793.9454},
-    {name = "Mineshaft", x = -596.93, y = 2094.12, z = 132.0},
+    {name = "Mineshaft", x = -563.096, y = 2015.12, z = 127.0},
     {name = "Military Base", x = -2138.234, y = 3250.8606, z = 34.0},
     {name = "LSIA", x = -1135.1100, y = -2885.2030, z = 15.0},
     {name = "Trevor\'s Airfield", x = 1590.6788, y = 3267.6698, z = 43.0},
@@ -1253,6 +1263,7 @@ end)
 function remove_extra_whitespace(str)
     return str:gsub("%s+", " ")
 end
+local CHAT_PRESETS_ROOT = CHAT_ROOT:list('Chat presets')
 
 CHAT_ROOT:toggle_loop('Cat facts', {'catfacts'}, 'Send important cat facts into chat every 10 seconds', function()
     local fact = nil
@@ -1272,6 +1283,21 @@ CHAT_ROOT:toggle_loop('Cat facts', {'catfacts'}, 'Send important cat facts into 
         chat.send_message('Cat fact!: ' .. fact, false, true, true)
     end
     util.yield(10000)
+end)
+
+
+CHAT_PRESETS_ROOT:action('That\'s pretty funny! Unfortunately, -IP-', {}, 'Everyone will see their own IP, and nobody will see anyone else\'s (unless they also have a menu anyways).\nCustom chat scripts won\'t render this correctly, but the feature will still work to anyone using vanilla chat.', function(click_type)
+    chat.send_message("That\'s pretty funny!", false, true, true)
+    chat.send_message("Unfortunately, ${ip}", false, true, true)
+end)
+
+CHAT_ROOT:action('Call out non-VPN users', {}, 'Sends targeted messages to all non-VPN users and tells them their ip', function(click_type)
+    for players.list(false, true, true) as pid do
+        if not players.is_using_vpn(pid) then
+            chat.send_targeted_message(pid, players.user(), 'Did you know you\'re not using a VPN? You probably should. ${ip}', false)
+            success('Sent call-out to ' .. players.get_name(pid))
+        end
+    end
 end)
 
 local af_downforce = 0.0
@@ -1420,9 +1446,9 @@ WORLD_ROOT:toggle_loop('Vehicle chaos', {}, 'The og, by the og', function()
         if ped ~= 0 then 
             if not IS_PED_A_PLAYER(ped) then 
                 entities.request_control(vehicle)
+                SET_VEHICLE_FORWARD_SPEED(vehicle, 100.0)
+                SET_VEHICLE_OUT_OF_CONTROL(vehicle, true, true)
             end
-            SET_VEHICLE_FORWARD_SPEED(vehicle, 100.0)
-            SET_VEHICLE_OUT_OF_CONTROL(vehicle, true, true)
         end
     end
 end)
@@ -1800,22 +1826,26 @@ function set_up_player_actions(pid)
 
     special_atk_root:action("Hell hounds", {}, "", function()
         for i=-3, 3 do
-            local data = send_attacker_after_player(pid, util.joaat('a_c_coyote_02'), 0, 0, -i * 0.5, 0)
-            local boxer = data.ped
-            SET_ENTITY_HEALTH(boxer, 300, 0)
-            SET_PED_ACCURACY(boxer, 100)
-            SET_PED_CAN_RAGDOLL(boxer, false)
-            SET_PED_COMBAT_ABILITY(boxer, 3)
-            SET_ENTITY_HEALTH(boxer, 300.0, 1)
-            SET_PED_SUFFERS_CRITICAL_HITS(boxer, false)
-            SET_COMBAT_FLOAT(boxer, 7, 1.0)
-            SET_COMBAT_FLOAT(boxer, 6, 100.0)
-            SET_COMBAT_FLOAT(boxer, 29, 1000.0)
-            SET_COMBAT_FLOAT(boxer, 19, 0.0)
-            SET_COMBAT_FLOAT(boxer, 20, 0.0)
+            send_attacker_after_player(pid, util.joaat('a_c_coyote_02'), 0, 0, -i * 0.5, 0)
         end
         success('Attackers sent after ' .. players.get_name(pid))
     end)
+
+    special_atk_root:action("Hell deer", {}, "", function()
+        for i=-3, 3 do
+            local ped = send_attacker_after_player(pid, util.joaat('a_c_deer_02'), 0, 0, -i * 0.5, 0)
+            SET_PED_CAN_RAGDOLL(ped.ped, false)
+        end
+        success('Attackers sent after ' .. players.get_name(pid))
+    end)
+
+    special_atk_root:action("Hell pugs", {}, "", function()
+        for i=-3, 3 do
+            send_attacker_after_player(pid, util.joaat('a_c_pug_02'), 0, 0, -i * 0.5, 0)
+        end
+        success('Attackers sent after ' .. players.get_name(pid))
+    end)
+
 
     special_atk_root:action("Zombie attack", {}, "", function()
         for i=-3, 3 do
@@ -1842,6 +1872,52 @@ function set_up_player_actions(pid)
             send_attacker_after_player(pid, util.joaat('a_m_o_tramp_01'), 0, 0, -i * 0.05, util.joaat('weapon_knife'))
         end
     end)
+
+    infantry_root:action("Femboy", {'hoboshank'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('a_m_m_tranvest_02'), 0, 0, -i * 0.05, 0)
+        end
+    end)
+
+
+    special_atk_root:action("Ghost", {'ghostattack'}, "", function()
+        for i=1, num_attackers do
+            local attacker = send_attacker_after_player(pid, util.joaat('a_m_o_tramp_01'), 0, 0, -i * 0.05,  util.joaat('weapon_knife'))
+            SET_ENTITY_VISIBLE(attacker.ped, false, false)
+            local ghost_hashes = {util.joaat('m23_1_prop_m31_ghostzombie_01a'), util.joaat('m23_1_prop_m31_ghostjohnny_01a'), util.joaat('m23_1_prop_m31_ghostrurmeth_01a'), 
+            util.joaat('m23_1_prop_m31_ghostsalton_01a'), util.joaat('m23_1_prop_m31_ghostskidrow_01a')}
+            local ghost_hash = ghost_hashes[math.random(#ghost_hashes)]
+            util.request_model(ghost_hash)
+            local ghost = entities.create_object(ghost_hash, players.get_position(pid))
+            ATTACH_ENTITY_TO_ENTITY(ghost, attacker.ped, 0, 0, 0, -1, 0, 0, 180, true, false, false, false, 3, true, 0)
+        end
+    end)
+
+    special_atk_root:action("Skeleton", {'skeletonattack'}, "", function()
+        for i=1, num_attackers do
+            local attacker = send_attacker_after_player(pid, util.joaat('a_m_o_tramp_01'), 0, 0, -i * 0.05,  util.joaat('weapon_knife'))
+            SET_ENTITY_VISIBLE(attacker.ped, false, false)
+            local ghost_hash = util.joaat('reh_prop_reh_skeleton_01a')
+            util.request_model(ghost_hash)
+            local ghost = entities.create_object(ghost_hash, players.get_position(pid))
+            ATTACH_ENTITY_TO_ENTITY(ghost, attacker.ped, 0, 0, 0, 0, 0, -100, -20, true, false, false, false, 3, true, 0)
+        end
+    end)
+
+        special_atk_root:action("Snowman", {'snowmanattack'}, "", function()
+        for i=1, num_attackers do
+            local attacker = send_attacker_after_player(pid, util.joaat('a_m_o_tramp_01'), 0, 0, -i * 0.05,  util.joaat('weapon_knife'))
+            SET_ENTITY_VISIBLE(attacker.ped, false, false)
+            local ghost_hash = util.joaat('xm3_prop_xm3_snowman_01c')
+            util.request_model(ghost_hash)
+            local ghost = entities.create_object(ghost_hash, players.get_position(pid))
+            ATTACH_ENTITY_TO_ENTITY(ghost, attacker.ped, 0, 0, 0, -1, 0, 0, 180, true, false, false, false, 3, true, 0)
+        end
+    end)
+
+    --World > Editor > Spawner > 
+
+
 
     special_atk_root:action("Anti-Aircraft Turret", {'aaturret'}, "", function()
         local veh_hash = util.joaat('trailersmall2')
@@ -2466,6 +2542,11 @@ function set_up_player_actions(pid)
             SET_PED_CAN_RAGDOLL(ped, false)
             SET_ENTITY_INVINCIBLE(ped, true)
             TASK_ENTER_VEHICLE(ped, tar_veh, 1000, -1, 1.0, (1 << 1) | (1 << 3) | (1 << 4) | (1 << 9), '')
+            --TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+            SET_PED_FLEE_ATTRIBUTES(ped, 0, 0)
+            SET_PED_CAN_RAGDOLL(ped, false)
+            SET_PED_FLEE_ATTRIBUTES(ped, 1, true)
+            SET_PED_COMBAT_ATTRIBUTES(ped, 17, 1)
             local st_time = os.time()
             while GET_VEHICLE_PED_IS_IN(ped, false) ~= tar_veh do
                 if os.time() - st_time >= 10 then 
@@ -2475,17 +2556,24 @@ function set_up_player_actions(pid)
                 end
                 util.yield()
             end
-            success('Hijack complete')
-            entities.request_control(ped)
-            TASK_VEHICLE_DRIVE_WANDER(ped, tar_veh, 9999.0, 6)
-            -- creds to prism
-            if not GET_IS_TASK_ACTIVE(ped) then
-                repeat
-                    TASK_VEHICLE_DRIVE_WANDER(ped, tar_veh, 9999.0, 6)
-                    yield()
-                until GET_IS_TASK_ACTIVE(ped, 151)
+            --success('Hijack complete')
+            local st_time = os.time()
+            while not entities.get_owner(ped) do
+                if os.time() - st_time >= 5 then
+                    fail('Could not get entity ownership')
+                    return
+                end
+                entities.request_control(ped)
+                util.yield()
             end
-            --TASK_VEHICLE_DRIVE_WANDER(ped, tar_veh, 100.0, 786748)
+            entities.request_control(tar_veh)
+            if not IS_THIS_MODEL_A_PLANE(GET_ENTITY_MODEL(tar_veh)) then 
+                TASK_VEHICLE_DRIVE_WANDER(ped, tar_veh, 1000.0, 786748)
+            else
+                SET_HELI_BLADES_FULL_SPEED(tar_veh)
+                TASK_PLANE_MISSION(ped, tar_veh, 0, 0, math.random(0, 1000), math.random(0, 1000), 200, 6, 0.0, 0, 0.0, 50.0, 40.0)
+            end
+            success('Hijack complete')
         else
             fail('Target is not in a car')
         end
