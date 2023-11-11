@@ -911,7 +911,7 @@ SELF_ROOT:toggle_loop('Laser eyes', {"lasereyes"}, '', function(on)
         local ped_model = GET_ENTITY_MODEL(players.user_ped())
         local left_eye_id = 0
         local right_eye_id = 0
-        pluto_switch ped_model do 
+        switch ped_model do 
             case 1885233650:
             case -1667301416:
                 left_eye_id = 25260
@@ -1135,7 +1135,7 @@ ONLINE_ROOT:toggle_loop('Nerf Oppressor MKII', {}, 'Replaces all MKII rockets wi
             local hdl = entities.pointer_to_handle(veh)
             local ped = GET_PED_IN_VEHICLE_SEAT(hdl, -1)
             if players.is_marked_as_modder(entities.get_owner(veh)) and detection_protection then 
-                pluto_continue
+                continue
             end
             if GET_VEHICLE_MOD(hdl, 10) ~= -1 then
                 entities.request_control(hdl)
@@ -1252,7 +1252,7 @@ ONLINE_ROOT:toggle_loop('Sink Kosatkas', {}, 'Dive! Dive! Dive!', function()
     for entities.get_all_vehicles_as_handles() as hdl do
         if GET_ENTITY_MODEL(hdl) == util.joaat('kosatka') and GET_ENTITY_COORDS(hdl).z > -90 then 
             if players.is_marked_as_modder(entities.get_owner(hdl)) and detection_protection then 
-                pluto_continue
+                continue
             end
             entities.request_control(hdl)
             SET_ENTITY_VELOCITY(hdl, 0.0, 0.0, -10.0)
@@ -2138,7 +2138,7 @@ function set_up_player_actions(pid)
         local p_hash = util.joaat("a_m_y_juggalo_01")
         local v_hash = 0
         local plane = false
-        pluto_switch index do 
+        switch index do 
             case 1:
                 v_hash = util.joaat("boxville3")
                 break 
@@ -2170,7 +2170,7 @@ function set_up_player_actions(pid)
         SET_PED_CAN_BE_DRAGGED_OUT(driver, false)
         SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
         util.yield(2000)
-        pluto_switch index do 
+        switch index do 
             case 1:
                 TASK_VEHICLE_DRIVE_TO_COORD(driver, truck, math.random(1000), math.random(1000), math.random(100), 100, 1, GET_ENTITY_MODEL(truck), 786996, 5, 0)
                 success('Kidnap attempt complete')
@@ -2736,7 +2736,7 @@ function set_up_player_actions(pid)
             c.z = new_z
         end
 
-        pluto_switch index do
+        switch index do
             case 1:
                 hooker = CLONE_PED(pid_to_ped(pid), true, false, true)
                 break
