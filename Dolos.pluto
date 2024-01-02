@@ -12,26 +12,6 @@ pluto_use "0.6.0"
 
 -- Dolos, THE SPIRIT OF TRICKERY
 
-local fource_sound_off = false
-local resources_dir =  filesystem.resources_dir() .. '\\dolos\\'
-if not filesystem.is_dir(resources_dir) then
-    if not SCRIPT_SILENT_START then 
-        util.toast("The Dolos resources dir is missing. This is okay, but sound will be disabled.")
-    end
-    force_sound_off = true 
-end
-
-local function playWav(wav)
-    local fr = soup.FileReader(wav)
-    local wav = soup.audWav(fr)
-    local dev = soup.audDevice.getDefault()
-    local pb = dev:open(wav.channels)
-    local mix = soup.audMixer()
-    mix.stop_playback_when_done = true
-    mix:setOutput(pb)
-    mix:playSound(wav)
-    while pb:isPlaying() do util.yield() end
-end
 
 function first_to_upper(str)
     return (str:gsub("^%l", string.upper))
@@ -48,8 +28,6 @@ local FAKE_ALERTS_ROOT = ROOT:list('Fake alerts')
 local DUKE_ROOT = ROOT:list('Duke')
 local SETTINGS_ROOT = ROOT:list('Settings')
 local detection_protection = true
-local feedback = true 
-local sound = not force_sound_off
 
 local fake_alert_delay = 0
 local function show_custom_alert_until_enter(l1)
@@ -113,14 +91,37 @@ FAKE_ALERTS_ROOT:action('Show ban 2', {}, "", function(on_click)
 end)
 
 
-local all_vehicle_bones = {'wheel_lf', 'wheel_lr', 'wheel_rf', 'wheel_rr', 'engine', 'exhaust', 'overheat', 'bonnet'}
+local all_vehicle_bones = {
+    {1, 'wheel_lf'},
+    {2, 'wheel_lr'},
+    {3, 'wheel_rf'},
+    {4, 'wheel_rr'},
+    {5, 'engine'},
+    {6, 'exhaust'},
+    {7, 'overheat'},
+    {8, 'bonnet'},
+    {9, 'rotor_main'},
+    {10, 'rotor_rear'},
+    {11, 'rotor_main_2'},
+    {12, 'rotor_rear_2'},
+}
+
 
 local npc_models_by_name = {
     ['Cop'] = util.joaat('s_m_y_cop_01'),
     ['Rabbit'] = util.joaat('a_c_rabbit_02'),
     ['Femboy'] = util.joaat('a_m_m_tranvest_02'),
     ['Chimp'] = util.joaat('a_c_chimp'),
-    ['Lester'] = util.joaat('cs_lestercrest')
+    ['Lester'] = util.joaat('IG_LesterCrest'),
+    ['Nerd'] = util.joaat('hc_hacker'),
+    ['Simeon'] = util.joaat('IG_SiemonYetarian'),
+    ['Dead Guy'] = 732742363,
+    ['Michael'] = util.joaat('player_zero'),
+    ['Franklin'] = util.joaat('player_one'),
+    ['Trevor'] = util.joaat('player_two'),
+    ['Mechanic'] = util.joaat('s_m_m_autoshop_01'),
+    ['Hooker'] = util.joaat('s_f_y_hooker_02'),
+    ['Shopkeeper'] = util.joaat('mp_m_shopkeep_01')
 }
 
 local OBJECTS = {
@@ -145,174 +146,118 @@ SETTINGS_ROOT:toggle('Detection protection', {}, 'Makes it so you won\'t send ev
     detection_protection = on  
 end, true) 
 
-SETTINGS_ROOT:toggle('Event feedback', {}, 'Lets you know exactkly what Dolos is doing when you do something with it', function(on)
-    feedback = on
-end, true) 
-
-SETTINGS_ROOT:toggle('Sound', {}, 'Sounds are played on event feedback (which you can toggle above) and script alerts', function(on)
-    if force_sound_off then 
-        fail('You cannot enable sound because the resources dir is missing.')
-        return 
-    end
-    sound = on
-end, not force_sound_off)
-
-local join_sound = false
-local leave_sound = false
-local last_join_sound_time = os.time()
-local last_leave_sound_time = os.time()
-
 players.on_join(function(pid)
     if pid == players.user() then 
         return 
     end
-    if sound and join_sound and ((os.time() - last_join_sound_time) > 2) then 
-        last_join_sound_time = os.time()
-        playWav(resources_dir .. '\\hello.wav')
-    end
 end)
 
-players.on_leave(function(pid)
-    if pid == players.user() then 
-        return 
-    end
-    if sound and join_sound and ((os.time() - last_leave_sound_time) > 2) then 
-        last_leave_sound_time = os.time()
-        playWav(resources_dir .. '\\goodbye.wav')
-    end
-end)
-
-SETTINGS_ROOT:toggle('Sound on player join', {}, '', function(on)
-    join_sound = on
-end, false)
-
-SETTINGS_ROOT:toggle('Sound on player leave', {}, '', function(on)
-    leave_sound = on
-end, false)
 
 local function pid_to_ped(pid)
     return GET_PLAYER_PED(pid)
 end 
 
 local function fail(message)
-    if feedback then 
-        util.toast('[Dolos] Problem: ' .. message)
-        if sound then 
-            playWav(resources_dir .. '\\fail.wav')
-        end
-    end
+    util.toast('[Dolos] Problem: ' .. message)
 end
 
 local function success(message)
     util.toast('[Dolos] Success: ' .. message)
-    if feedback then
-        if sound then 
-            playWav(resources_dir .. '\\success.wav')
-        end
-    end
 end
 
 local function processing(message)
     util.toast('[Dolos] Processing: ' .. message)
-    if feedback then
-        if sound then 
-            playWav(resources_dir .. '\\processing.wav')
-        end
-    end
 end
 
 local function alert(message)
     util.toast('[Dolos] Attention: ')
-    if sound then 
-        playWav(resources_dir .. '\\processing.wav')
-    end
 end
 
 local EXPLOSIONS = {
-	'GRENADE',
-	'GRENADELAUNCHER',
-	'STICKYBOMB',
-	'MOLOTOV',
-	'ROCKET',
-	'TANKSHELL',
-	'HI_OCTANE',
-	'CAR',
-	'PLANE',
-	'PETROL_PUMP',
-	'BIKE',
-	'DIR_STEAM',
-	'DIR_FLAME',
-	'DIR_WATER_HYDRANT',
-	'DIR_GAS_CANISTER',
-	'BOAT',
-	'SHIP_DESTROY',
-	'TRUCK',
-	'BULLET',
-	'SMOKEGRENADELAUNCHER',
-	'SMOKEGRENADE',
-	'BZGAS',
-	'FLARE',
-	'GAS_CANISTER',
-	'EXTINGUISHER',
-	'PROGRAMMABLEAR',
-	'TRAIN',
-	'BARREL',
-	'PROPANE',
-	'BLIMP',
-	'DIR_FLAME_EXPLODE',
-	'TANKER',
-	'PLANE_ROCKET',
-	'VEHICLE_BULLET',
-	'GAS_TANK',
-	'BIRD_CRAP',
-	'RAILGUN',
-	'BLIMP2',
-	'FIREWORK',
-	'SNOWBALL',
-	'PROXMINE',
-	'VALKYRIE_CANNON',
-	'AIR_DEFENCE',
-	'PIPEBOMB',
-	'VEHICLEMINE',
-	'EXPLOSIVEAMMO',
-	'APCSHELL',
-	'BOMB_CLUSTER',
-	'BOMB_GAS',
-	'BOMB_INCENDIARY',
-	'BOMB_STANDARD',
-	'TORPEDO',
-	'TORPEDO_UNDERWATER',
-	'BOMBUSHKA_CANNON',
-	'BOMB_CLUSTER_SECONDARY',
-	'HUNTER_BARRAGE',
-	'HUNTER_CANNON',
-	'ROGUE_CANNON',
-	'MINE_UNDERWATER',
-	'ORBITAL_CANNON',
-	'BOMB_STANDARD_WIDE',
-	'EXPLOSIVEAMMO_SHOTGUN',
-	'OPPRESSOR2_CANNON',
-	'MORTAR_KINETIC',
-	'VEHICLEMINE_KINETIC',
-	'VEHICLEMINE_EMP',
-	'VEHICLEMINE_SPIKE',
-	'VEHICLEMINE_SLICK',
-	'VEHICLEMINE_TAR',
-	'SCRIPT_DRONE',
-	'RAYGUN',
-	'BURIEDMINE',
-	'SCRIPT_MISSILE',
-	'RCTANK_ROCKET',
-	'BOMB_WATER',
-	'BOMB_WATER_SECONDARY',
-	'0xF728C4A9',
-	'0xBAEC056F',
-	'FLASHGRENADE',
-	'STUNGRENADE',
-	'0x763D3B3B',
-	'SCRIPT_MISSILE_LARGE',
-	'SUBMARINE_BIG',
-	'EMPLAUNCHER_EMP'
+    {1, "GRENADE", {}, ""},
+    {2, "GRENADELAUNCHER", {}, ""},
+    {3, "STICKYBOMB", {}, ""},
+    {4, "MOLOTOV", {}, ""},
+    {5, "ROCKET", {}, ""},
+    {6, "TANKSHELL", {}, ""},
+    {7, "HI_OCTANE", {}, ""},
+    {8, "CAR", {}, ""},
+    {9, "PLANE", {}, ""},
+    {10, "PETROL_PUMP", {}, ""},
+    {11, "BIKE", {}, ""},
+    {12, "DIR_STEAM", {}, ""},
+    {13, "DIR_FLAME", {}, ""},
+    {14, "DIR_WATER_HYDRANT", {}, ""},
+    {15, "DIR_GAS_CANISTER", {}, ""},
+    {16, "BOAT", {}, ""},
+    {17, "SHIP_DESTROY", {}, ""},
+    {18, "TRUCK", {}, ""},
+    {19, "BULLET", {}, ""},
+    {20, "SMOKEGRENADELAUNCHER", {}, ""},
+    {21, "SMOKEGRENADE", {}, ""},
+    {22, "BZGAS", {}, ""},
+    {23, "FLARE", {}, ""},
+    {24, "GAS_CANISTER", {}, ""},
+    {25, "EXTINGUISHER", {}, ""},
+    {26, "PROGRAMMABLEAR", {}, ""},
+    {27, "TRAIN", {}, ""},
+    {28, "BARREL", {}, ""},
+    {29, "PROPANE", {}, ""},
+    {30, "BLIMP", {}, ""},
+    {31, "DIR_FLAME_EXPLODE", {}, ""},
+    {32, "TANKER", {}, ""},
+    {33, "PLANE_ROCKET", {}, ""},
+    {34, "VEHICLE_BULLET", {}, ""},
+    {35, "GAS_TANK", {}, ""},
+    {36, "BIRD_CRAP", {}, ""},
+    {37, "RAILGUN", {}, ""},
+    {38, "BLIMP2", {}, ""},
+    {39, "FIREWORK", {}, ""},
+    {40, "SNOWBALL", {}, ""},
+    {41, "PROXMINE", {}, ""},
+    {42, "VALKYRIE_CANNON", {}, ""},
+    {43, "AIR_DEFENCE", {}, ""},
+    {44, "PIPEBOMB", {}, ""},
+    {45, "VEHICLEMINE", {}, ""},
+    {46, "EXPLOSIVEAMMO", {}, ""},
+    {47, "APCSHELL", {}, ""},
+    {48, "BOMB_CLUSTER", {}, ""},
+    {49, "BOMB_GAS", {}, ""},
+    {50, "BOMB_INCENDIARY", {}, ""},
+    {51, "BOMB_STANDARD", {}, ""},
+    {52, "TORPEDO", {}, ""},
+    {53, "TORPEDO_UNDERWATER", {}, ""},
+    {54, "BOMBUSHKA_CANNON", {}, ""},
+    {55, "BOMB_CLUSTER_SECONDARY", {}, ""},
+    {56, "HUNTER_BARRAGE", {}, ""},
+    {57, "HUNTER_CANNON", {}, ""},
+    {58, "ROGUE_CANNON", {}, ""},
+    {59, "MINE_UNDERWATER", {}, ""},
+    {60, "ORBITAL_CANNON", {}, ""},
+    {61, "BOMB_STANDARD_WIDE", {}, ""},
+    {62, "EXPLOSIVEAMMO_SHOTGUN", {}, ""},
+    {63, "OPPRESSOR2_CANNON", {}, ""},
+    {64, "MORTAR_KINETIC", {}, ""},
+    {65, "VEHICLEMINE_KINETIC", {}, ""},
+    {66, "VEHICLEMINE_EMP", {}, ""},
+    {67, "VEHICLEMINE_SPIKE", {}, ""},
+    {68, "VEHICLEMINE_SLICK", {}, ""},
+    {69, "VEHICLEMINE_TAR", {}, ""},
+    {70, "SCRIPT_DRONE", {}, ""},
+    {71, "RAYGUN", {}, ""},
+    {72, "BURIEDMINE", {}, ""},
+    {73, "SCRIPT_MISSILE", {}, ""},
+    {74, "RCTANK_ROCKET", {}, ""},
+    {75, "BOMB_WATER", {}, ""},
+    {76, "BOMB_WATER_SECONDARY", {}, ""},
+    {77, "EXP_TAG_MINE_CNCSPIKE", {}, ""},
+    {78, "EXP_TAG_BZGAS_MK2", {}, ""},
+    {79, "FLASHGRENADE", {}, ""},
+    {80, "STUNGRENADE", {}, ""},
+    {81, "EXP_TAG_CNC_KINETICRAM", {}, ""},
+    {82, "SCRIPT_MISSILE_LARGE", {}, ""},
+    {83, "SUBMARINE_BIG", {}, ""},
+    {84, "EMPLAUNCHER_EMP", {}, ""}
 }
 
 local LOCATIONS = {
@@ -370,9 +315,11 @@ local LOCATIONS = {
     {name = "Construction Building", x = -161.26, y = -937.87, z = 268.52},
     {name = "Observatory", x = -413.9711, y = 1174.0361, z = 325.9465},
     {name = "Bank Vault",  x = 255.851, y = 217.030, z = 101.683},
-    {name = 'High up', x = -129.964, y = 8130.873, z = 6705.307},
-    {name = 'Dead sea monster', x = -3378.6558, y =  507.90802, z =  -20.050179}
+    {name = 'High up', x = 0, y = 0, z = 6705.307},
+    {name = 'Dead sea monster', x = -3378.6558, y =  507.90802, z =  -20.050179},
+    {name = 'Avenger Cargo Hold', x = -889.39190673828, y = -2769.1936035156, z = -48.995986938477}
 }
+
 
 local HOOKER_VOICES = {
     "S_F_Y_HOOKER_01_WHITE_FULL_01",
@@ -432,7 +379,6 @@ local function request_ptfx_asset(asset)
     end
 end
 
-
 local function request_anim_dict(dict)
     while not HAS_ANIM_DICT_LOADED(dict) do
         REQUEST_ANIM_DICT(dict)
@@ -447,11 +393,11 @@ local function request_anim_set(set)
     end
 end
 
-
 function do_ped_suicide(ped)
     entities.request_control(ped)
+    SET_PED_CONFIG_FLAG(ped, 20, true)
     CLEAR_PED_TASKS_IMMEDIATELY(ped)
-    SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+    SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true) 
     GIVE_WEAPON_TO_PED(ped, util.joaat("weapon_pistol"), 1, false, true)
     SET_CURRENT_PED_WEAPON(ped, util.joaat("weapon_pistol"), true)
     request_anim_dict("mp_suicide")
@@ -464,8 +410,6 @@ function do_ped_suicide(ped)
     TASK_PLAY_ANIM(ped, "mp_suicide", "pistol", 8.0, 8.0, -1, 2, 0.0, false, false, false)
     util.yield(800)
     SET_ENTITY_HEALTH(ped, 0.0, 5)
-    util.yield(10000)
-    entities.delete(ped)
 end
 
 
@@ -694,11 +638,11 @@ function send_attacker_after_ped(ped, attacker_mdl, vehicle_mdl, x_off, y_off, w
     }
     local plane = false
     if vehicle_mdl ~= 0 then
-        if IS_THIS_MODEL_A_PLANE(vehicle_mdl) then
+        if IS_THIS_MODEL_A_PLANE(vehicle_mdl) or IS_THIS_MODEL_A_HELI(vehicle_mdl) then
             plane = true
-            c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped, x_off, y_off * 10, 100 + math.random(0, 50))
+            c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped, math.random(-100, 100), (y_off * 10) + math.random(-100, 100), 100 + math.random(10, 100))
         else
-            c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped, x_off, y_off, -0.5)
+            c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped, math.random(-100, 100), y_off, -0.5)
         end
     else
         c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(ped, x_off, -5.0, -0.5)
@@ -1265,6 +1209,143 @@ ONLINE_ROOT:toggle_loop('Implode Kosatkas', {}, 'When you use carbon fiber in yo
     end
 end)
 
+local broke_blips = {}
+
+util.on_transition_finished(function(on)
+    for pid, blip in pairs(broke_blips) do
+        if blip ~= nil then
+            util.remove_blip(blip)
+            broke_blips[pid] = nil
+        end
+    end
+    broke_blips = {}
+end)
+
+-- broke radar handler
+local broke_radar = false
+local broke_radar_threshold = 1000000
+
+util.create_tick_handler(function()
+    if broke_radar then 
+        for players.list(false, true, true) as pid do
+            if not players.are_stats_ready(pid) then
+                continue
+            end
+            local c = players.get_position(pid)
+            local p_money = players.get_money(pid)
+            if p_money < broke_radar_threshold then
+                if broke_blips[pid] ~= nil then
+                    SET_BLIP_COORDS(broke_blips[pid], c.x, c.y, c.z)
+                    continue
+                end
+                broke_blips[pid] = ADD_BLIP_FOR_RADIUS(c.x, c.y, c.z, 100.0)
+                SET_BLIP_ALPHA(broke_blips[pid], 100)
+                SET_BLIP_COLOUR(broke_blips[pid], 28)
+            else
+                for pid, blip in pairs(broke_blips) do
+                    if blip ~= nil then
+                        util.remove_blip(blip)
+                        broke_blips[pid] = nil
+                    end
+                end
+            end
+        end
+        -- cleanup unused blips
+        for pid, blip in pairs(broke_blips) do
+            if not players.exists(pid) and blip ~= nil then
+                broke_blips[pid] = nil
+            end
+        end
+    end
+end)
+
+ONLINE_ROOT:slider('Broke radar', {}, 'Highlights on the map players who have less than the amount specified.\n0 to turn this off.', 0, 1000000000, 0, 100000,  function(value)
+    broke_radar_threshold = value
+    if broke_radar_threshold ~= 0 then 
+        broke_radar = true
+    else
+        broke_radar = false
+        for pid, blip in pairs(broke_blips) do
+            util.remove_blip(blip)
+            broke_blips[pid] = nil
+        end
+    end
+    if not broke_radar then
+        for pid, blip in pairs(broke_blips) do
+            util.remove_blip(blip)
+            broke_blips[pid] = nil
+        end
+    end
+end)
+
+function round(num, numDecimalPlaces)
+  local mult = 10^(numDecimalPlaces or 0)
+  return math.floor(num * mult + 0.5) / mult
+end
+
+
+ONLINE_ROOT:action('Announce poorest player', {'announcepoorest'}, '', function()
+    local poorest = nil
+    local lowest_money = 1000000000
+    for players.list(true, true, true) as pid do 
+        if not players.are_stats_ready(pid) then
+            continue
+        end
+        local player_name = players.get_name(pid)
+        local player_money = players.get_money(pid)
+        if player_money < lowest_money then
+            poorest = player_name
+            lowest_money = player_money
+        end
+    end
+    chat.send_message(poorest .. ' is the poorest player in the session, with just $' .. lowest_money .. ' total.', false, true, true)
+end)
+
+-- not a copy of the above (real)
+ONLINE_ROOT:action('Announce wealthiest player', {'announcewealthiest'}, '', function()
+    local richest = nil
+    local most_money = 0
+    for players.list(true, true, true) as pid do 
+        if not players.are_stats_ready(pid) then
+            continue
+        end
+        local player_name = players.get_name(pid)
+        local player_money = players.get_money(pid)
+        if player_money > most_money then
+            richest = player_name
+            most_money = player_money
+        end
+    end
+    chat.send_message(richest .. ' is the wealthiest player in the session, with $' .. most_money .. ' total.', false, true, true)
+end)
+
+ONLINE_ROOT:action('Announce lowest K/D player', {'announceworstkd'}, '', function()
+    local lowest = nil
+    local lowest_kd = 100000
+    for players.list(true, true, true) as pid do 
+        local player_name = players.get_name(pid)
+        local player_kd = players.get_kd(pid)
+        if player_kd < lowest_kd then
+            lowest = player_name
+            lowest_kd = player_kd
+        end
+    end
+    chat.send_message(lowest .. ' has the lowest K/D ratio in the session; a '  .. round(tonumber(lowest_kd), 2) .. '.', false, true, true)
+end)
+
+ONLINE_ROOT:action('Announce highest K/D player', {'announcebestkd'}, '', function()
+    local highest = nil
+    local highest_kd = 0
+    for players.list(true, true, true) as pid do 
+        local player_name = players.get_name(pid)
+        local player_kd = players.get_kd(pid)
+        if player_kd > highest_kd then
+            highest = player_name
+            highest_kd = player_kd
+        end
+    end
+    chat.send_message(highest .. ' has the highest K/D ratio in the session; a '  .. round(tonumber(highest_kd), 2) .. '.', false, true, true)
+end)
 
 
 function remove_extra_whitespace(str)
@@ -1494,6 +1575,11 @@ WORLD_ROOT:action('Crash plane into Maze Bank Tower', {}, 'Make TSA canon in the
     end
 end)
 
+WORLD_ROOT:action('Spawn animals', {}, 'test', function()
+    POPULATE_NOW()
+end)
+
+
 function cleanup_fish(fish)
     util.create_thread(function()
         util.yield(8000)
@@ -1648,6 +1734,14 @@ WORLD_ROOT:toggle_loop('EMP forcefield', {}, 'Automatically disables vehicles ne
 end)
 
 
+WORLD_ROOT:toggle_loop('TP all pickups', {}, '', function()
+    for entities.get_all_pickups_as_handles() as ent do
+        local c = players.get_position(players.user())
+        SET_ENTITY_COORDS(ent, c.x, c.y, c.z, false, false, false, true)
+    end
+end)
+
+
 
 
 function get_rand_player_ped() 
@@ -1684,12 +1778,12 @@ function count_occurrences(table, element)
     return count
 end
 
-
-local weapon_names = {}
-local weapon_hashes = {}
-
-weapon_names[1] = 'Unarmed'
-weapon_hashes[1] = 0
+local weapon_names = {
+    {1, 'Unarmed', {}},
+}
+local weapon_hashes = {
+    [1] = 0,
+}
 
 local blacklist = {883325847, 3126027122, 406929569, 4256881901, 28811031, 2481070269, 741814745, 4256991824, 2694266206, 615608432, 600439132, 1233104067, 1834887169, -135142818, 2874559379, 126349499, 3125143736}
 
@@ -1698,13 +1792,17 @@ for util.get_weapons() as w do
         continue 
     end
     local name = util.get_label_text(w.label_key)
+    local index = #weapon_names + 1
+    
     if table.contains(weapon_names, name) then 
-        name = name .. ' ' .. tostring(count_occurrences(weapon_names, name)) + 1
+        local count = count_occurrences(weapon_names, name)
+        name = name .. ' ' .. tostring(count + 1)
     end
 
-    weapon_names[#weapon_names+1] = name
-    weapon_hashes[#weapon_hashes+1] = w.hash
+    weapon_names[index] = {index, name, {}}
+    weapon_hashes[index] = w.hash
 end
+
 
 function dramatic_mode(veh)
     util.create_thread(function()
@@ -1736,8 +1834,8 @@ function set_up_player_actions(pid)
     local npc_root = player_root:list('NPCs')
     local attackers_root = npc_root:list('Attack')
 
-    local selected_attacker_wep = 0
-    attackers_root:list_select('Attacker weapon', {'attackerwep'}, 'Some unique attackers are unaffected by this option', weapon_names, 1, function(sel)
+    local selected_attacker_wep = weapon_hashes[4]
+    attackers_root:list_select('Attacker weapon', {'attackerwep'}, 'Some unique attackers are unaffected by this option', weapon_names, 4, function(sel)
         selected_attacker_wep = weapon_hashes[sel]
     end)
 
@@ -1805,6 +1903,24 @@ function set_up_player_actions(pid)
             success('One punch man sent after ' .. players.get_name(pid))
         end
     end)
+
+    special_atk_root:action("British", {}, "", function()
+        for i=1, num_attackers do
+            local data = send_attacker_after_player(pid, util.joaat('mp_m_freemode_01'), 0, 0, -2.0, i)
+            local boxer = data.ped
+            SET_PED_ACCURACY(boxer, 100)
+            SET_PED_CAN_RAGDOLL(boxer, false)
+            SET_PED_COMBAT_ABILITY(boxer, 3)
+            SET_ENTITY_HEALTH(boxer, 300.0, 1)
+            SET_PED_SUFFERS_CRITICAL_HITS(boxer, false)
+            GIVE_WEAPON_TO_PED(boxer, util.joaat("weapon_musket"), 1, false, true)
+            local coords = GET_ENTITY_COORDS(boxer, false)
+            local obj = entities.create_object(util.joaat("prop_flag_uk"), coords)
+            ATTACH_ENTITY_TO_ENTITY(obj, boxer, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, false, false, true, false, 0, true, 0)
+            success('British sent after ' .. players.get_name(pid))
+        end
+    end)
+
 
     plane_attackers_root:action("Scramble A-10", {}, "", function()
         for i=1, num_attackers do
@@ -1892,6 +2008,24 @@ function set_up_player_actions(pid)
         end
     end)
 
+    car_attackers_root:action("Hakuchou", {}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('hakuchou'), 0, -i * 5, selected_attacker_wep)
+        end
+    end)
+
+    car_attackers_root:action("Kuruma", {}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('kuruma2'), 0, -i * 5, selected_attacker_wep)
+        end
+    end)
+
+    car_attackers_root:action("Tampa", {}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('s_m_m_autoshop_01'), util.joaat('tampa3'), 0, -i * 5, selected_attacker_wep)
+        end
+    end)
+
     car_attackers_root:action("Input model", {'doloscustomcatk'}, "", function()
         menu.show_command_box('doloscustomcatk' .. players.get_name(pid) .. ' ')
     end, function(entry)
@@ -1937,8 +2071,8 @@ function set_up_player_actions(pid)
 
 
     special_atk_root:action("Zombie attack", {}, "", function()
-        for i=-3, 3 do
-            local data = send_attacker_after_player(pid, util.joaat('U_M_Y_Zombie_01'), 0, 0, -i*0.5, 0)
+        for i=1, 10 do
+            local data = send_attacker_after_player(pid, util.joaat('U_M_Y_Zombie_01'), 0, math.random(-15, 15), math.random(-15, -10), 0)
             local boxer = data.ped
             SET_ENTITY_HEALTH(boxer, 300, 0)
             SET_PED_ACCURACY(boxer, 100)
@@ -2051,10 +2185,23 @@ function set_up_player_actions(pid)
         end
     end)
 
+
+    infantry_root:action("Yusuf Amir", {'yusuf'}, "we gettin arab money", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('IG_YusufAmir'), 0, 0, -i * 0.05, selected_attacker_wep)
+        end
+    end)
+
     
     infantry_root:action("Grinch", {'grinch'}, "", function()
         for i=1, num_attackers do
             send_attacker_after_player(pid, util.joaat('U_M_M_YuleMonster'), 0, 0, -i * 0.05, selected_attacker_wep)
+        end
+    end)
+
+    infantry_root:action("Yeti", {'yeti'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, util.joaat('U_M_M_Yeti'), 0, 0, -i * 0.05, selected_attacker_wep)
         end
     end)
 
@@ -2067,6 +2214,62 @@ function set_up_player_actions(pid)
     infantry_root:action("Furry", {'uwu'}, "", function()
         for i=1, num_attackers do
             send_attacker_after_player(pid,  0x50262DB9, 0, 0, -i * 0.05, selected_attacker_wep)
+        end
+    end)
+
+    infantry_root:action("Shopkeeper", {'shopkeeperatk'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid,  npc_models_by_name['Shopkeeper'], 0, 0, -i * 0.05, selected_attacker_wep)
+        end
+    end)
+
+
+    infantry_root:action("Franklin", {'frankattack'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid,  npc_models_by_name['Franklin'], 0, 0, -i * 0.05, selected_attacker_wep)
+        end
+    end)
+
+    infantry_root:action("Michael", {'michaelattack'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid,  npc_models_by_name['Michael'], 0, 0, -i * 0.05, selected_attacker_wep)
+        end
+    end)
+
+    infantry_root:action("Trevor", {'trevorattack'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid,  npc_models_by_name['Trevor'], 0, 0, -i * 0.05, selected_attacker_wep)
+        end
+    end)
+
+
+    infantry_root:action("Simeon", {'simeonattack'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, npc_models_by_name['Simeon'], 0, 0, -i * 0.05, selected_attacker_wep)
+        end
+    end)
+
+    infantry_root:action("Lester", {'lesterattack'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, npc_models_by_name['Lester'], 0, 0, -i * 0.05, selected_attacker_wep)
+        end
+    end)
+
+    infantry_root:action("Mechanic", {'mechanicattack'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, npc_models_by_name['Mechanic'], 0, 0, -i * 0.05, selected_attacker_wep)
+        end
+    end)
+
+    infantry_root:action("Dead guy", {'deadguyattack'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid, npc_models_by_name['Dead Guy'], 0, 0, -i * 0.05, selected_attacker_wep)
+        end
+    end)
+
+    infantry_root:action("Nerd", {'ermm'}, "", function()
+        for i=1, num_attackers do
+            send_attacker_after_player(pid,  npc_models_by_name['Nerd'], 0, 0, -i * 0.05, selected_attacker_wep)
         end
     end)
 
@@ -2186,7 +2389,7 @@ function set_up_player_actions(pid)
 
 
     veh_root:action('Cargobob confiscate', {}, 'Featuring a magnet so you don\'t need to worry about scratches or dents!', function()
-    local p_ped = pid_to_ped(pid)
+        local p_ped = pid_to_ped(pid)
         local target_v = GET_VEHICLE_PED_IS_IN(p_ped, true)
         local c = players.get_position(pid)
         c.z += 10
@@ -2222,11 +2425,17 @@ function set_up_player_actions(pid)
         SET_HELI_TURBULENCE_SCALAR(veh, 0.0)
     end)
     
-    local kidnap_types = {"Truck", "Heli", "Cargoplane"}
+    local kidnap_types = {
+    {1, "Truck", {}},
+    {2, "Heli", {}},
+    {3, "Cargoplane", {}},
+    {4, "Jet", {}}
+    }
     npc_root:list_action("Kidnap", {}, 'This networks a little weirdly, so it may actually work if it looks like it failed.', kidnap_types, function(index, value)
-        local p_hash = util.joaat("a_m_y_juggalo_01")
+        local p_ped = pid_to_ped(pid)
+        local p_hash = npc_models_by_name['Chimp']
         local v_hash = 0
-        local plane = false
+        local veh = GET_VEHICLE_PED_IS_IN(p_ped, false)
         switch index do 
             case 1:
                 v_hash = util.joaat("boxville3")
@@ -2235,37 +2444,55 @@ function set_up_player_actions(pid)
                 v_hash = util.joaat("cargobob")
                 break
             case 3:
-                plane = true
+                if target_v == -1 then
+                    fail('Target must be in a vehicle')
+                    return
+                end
                 v_hash = util.joaat('cargoplane')
+                break
+            case 4:
+                if target_v == -1 then
+                    fail('Target must be in a vehicle')
+                    return
+                end
+                v_hash = util.joaat('jet')
                 break
         end
         local user_ped = pid_to_ped(pid)
         util.request_model(v_hash)
         util.request_model(p_hash)
-        local z_off = 0.0
-        if plane then
-            z_off = 400.0
+        local c
+        if index >= 3 then
+            c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(user_ped, 0.0, 2.0, 800.0)
+        else
+            c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(user_ped, 0.0, 2.0, 0.0)
         end
-        local c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(user_ped, 0.0, 2.0, z_off)
         local truck = entities.create_vehicle(v_hash, c, GET_ENTITY_HEADING(user_ped))
-        if plane then 
-            FREEZE_ENTITY_POSITION(truck, true)
-        end
+        SET_HELI_BLADES_FULL_SPEED(truck)
+        SET_VEHICLE_FORWARD_SPEED(truck, 3)
         local driver = entities.create_ped(5, p_hash, c, 0)
         SET_PED_INTO_VEHICLE(driver, truck, -1)
         SET_PED_FLEE_ATTRIBUTES(driver, 0, false)
-        SET_ENTITY_INVINCIBLE(driver, true)
-        SET_ENTITY_INVINCIBLE(truck, true)
         SET_PED_CAN_BE_DRAGGED_OUT(driver, false)
         SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(driver, true)
+        if not IS_THIS_MODEL_A_PLANE(GET_ENTITY_MODEL(truck)) then
+            FREEZE_ENTITY_POSITION(truck, true)
+        end
         util.yield(2000)
         switch index do 
             case 1:
                 TASK_VEHICLE_DRIVE_TO_COORD(driver, truck, math.random(1000), math.random(1000), math.random(100), 100, 1, GET_ENTITY_MODEL(truck), 786996, 5, 0)
                 success('Kidnap attempt complete')
+                util.yield(3000)
+                entities.request_control(driver)
+                entities.request_control(truck)
+                FREEZE_ENTITY_POSITION(truck, false)
                 break 
             case 2:
                 TASK_HELI_MISSION(driver, truck, 0, 0, math.random(1000), math.random(1000), 1500, 4, 200.0, 0.0, 0, 100, 1000, 0.0, 16)
+                entities.request_control(driver)
+                entities.request_control(truck)
+                FREEZE_ENTITY_POSITION(truck, false)
                 success('Kidnap attempt complete')
                 break
             case 3:
@@ -2274,36 +2501,35 @@ function set_up_player_actions(pid)
                     return
                 end
                 local init_c = players.get_position(pid)
+                FREEZE_ENTITY_POSITION(truck, false)
                 TASK_PLANE_MISSION(driver, truck, 0, 0, math.random(-1000, 1000), math.random(-1000, 1000), 400.0, 4, 100.0, 0.0, 90.0, 400.0, 800.0)
-
-                local veh = GET_VEHICLE_PED_IS_IN(pid_to_ped(pid), true)
                 c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(truck, 0.0, -4.0, 0.0)
-                if veh ~= 0 then
-                    entities.request_control(veh)
-                    SET_ENTITY_COORDS(veh, c.x, c.y, c.z)
-                else
-                    local c2 = players.get_position(pid)
-                    players.teleport_3d(pid, c.x, c.y, c.z)
-                    -- wait for player to tp
-                    local st_time = os.time()
-                    while true do 
-                        if os.time() - st_time >= 10 then 
-                            fail('Teleporting the target may have failed')
-                            return
-                        end 
-                        c2 = players.get_position(pid)
-                        if GET_DISTANCE_BETWEEN_COORDS(c.x, c.y, c.z, c2.x, c2.y, c2.z, true) <= 5 then 
-                            success('Teleported player sucessfully')
-                            break 
-                        end
-                        util.yield()
-                    end
-                end
-                FREEZE_ENTITY_POSITION(truck, false)
-                SET_HELI_BLADES_FULL_SPEED(truck)
-                FREEZE_ENTITY_POSITION(truck, false)
-                SET_VEHICLE_FORWARD_SPEED(truck, 3)
+                entities.request_control(veh)
+                ATTACH_ENTITY_TO_ENTITY(veh, truck, 0, 0, -15, -3.5, 0, 0, 0, true, true, false, false, 3, true, 0)
+                util.yield(5000)
+                entities.request_control(veh)
+                entities.request_control(truck)
+                DETACH_ENTITY(veh, true, false)
                 success('Kidnap attempt complete')
+                util.yield(60000)
+                SET_VEHICLE_DOOR_OPEN(truck, 5, false, true)
+                break
+            case 4:
+                FREEZE_ENTITY_POSITION(truck, false)
+                if detection_protection and players.is_marked_as_modder(pid) then 
+                    fail('Target is a modder and detection protection is active.')
+                    return
+                end
+                local init_c = players.get_position(pid)
+                TASK_PLANE_MISSION(driver, truck, 0, 0, math.random(-1000, 1000), math.random(-1000, 1000), 400.0, 4, 100.0, 0.0, 90.0, 400.0, 800.0)
+                c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(truck, 0.0, -4.0, 0.0)
+                entities.request_control(veh)
+                ATTACH_ENTITY_TO_ENTITY(veh, truck, 0, 0, -15, 0, 0, 0, 0, true, true, false, false, 3, true, 0)
+                success('Kidnap attempt complete')
+                util.yield(60000)
+                entities.request_control(veh)
+                entities.request_control(truck)
+                DETACH_ENTITY(veh)
                 break
         end
     end)
@@ -2548,7 +2774,7 @@ function set_up_player_actions(pid)
         end
     end)
 
-    veh_root:list_action("Fill car with NPC\'s", {"rabbitfill"}, "", {'Cop', 'Rabbit', 'Femboy', 'Chimp', 'Lester'}, function(_, name)
+    veh_root:list_action("Fill car with NPC\'s", {"rabbitfill"}, "", {{1, 'Cop'}, {2, 'Rabbit'}, {3, 'Femboy'}, {4, 'Chimp'}, {5, 'Lester'}, {6, 'Dead Guy'}, {7, 'Simeon'}, {8, 'Hooker'}, {9, 'Shopkeeper'}}, function(_, name)
         local p_ped = pid_to_ped(pid)
         local c = players.get_position(pid)
         local v = GET_VEHICLE_PED_IS_IN(p_ped, false)
@@ -2563,6 +2789,18 @@ function set_up_player_actions(pid)
                     SET_PED_COMBAT_ATTRIBUTES(npc, 5, true)
                     SET_PED_FLEE_ATTRIBUTES(npc, 0, false)
                     SET_PED_COMBAT_ATTRIBUTES(npc, 46, true)
+                    SET_PED_COMBAT_ATTRIBUTES(npc, 5, true)
+                    SET_PED_FLEE_ATTRIBUTES(npc, 0, false)
+                    SET_PED_COMBAT_ATTRIBUTES(npc, 46, true)
+                    SET_PED_ACCURACY(npc, 100)
+                    SET_PED_COMBAT_ABILITY(npc, 3)
+                    SET_COMBAT_FLOAT(npc, 7, 1.0)
+                    SET_COMBAT_FLOAT(npc, 6, 100.0)
+                    SET_COMBAT_FLOAT(npc, 29, 110.0)
+                    SET_COMBAT_FLOAT(npc, 19, 0.0)
+                    SET_COMBAT_FLOAT(npc, 20, 0.0)
+                    GIVE_WEAPON_TO_PED(npc, util.joaat("weapon_pistol"), 1, false, true)
+                    SET_CURRENT_PED_WEAPON(npc, util.joaat("weapon_pistol"), true)
                 end
             end
         end
@@ -2600,6 +2838,7 @@ function set_up_player_actions(pid)
         if tar_veh ~= -1 then 
             local c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(tar_veh, 0.0, -10.0, 0.0)
             local ped = entities.create_ped(28, p_hash, c, GET_ENTITY_HEADING(tar_veh))
+            SET_PED_CONFIG_FLAG(ped, 141, true)
             SET_PED_FLEE_ATTRIBUTES(ped, 1, true)
             SET_PED_CAN_RAGDOLL(ped, false)
             SET_ENTITY_INVINCIBLE(ped, true)
@@ -2631,9 +2870,11 @@ function set_up_player_actions(pid)
             entities.request_control(tar_veh)
             local mdl = GET_ENTITY_MODEL(tar_veh)
             if IS_THIS_MODEL_A_PLANE(mdl) then 
+                SET_DISABLE_AUTOMATIC_CRASH_TASK(tar_veh, true)
                 SET_HELI_BLADES_FULL_SPEED(tar_veh)
-                TASK_PLANE_MISSION(ped, jet, 0, tar_ped, 0, 0, 0, 6, 0.0, 0, 0.0, 50.0, 40.0)
+                TASK_PLANE_MISSION(ped, tar_veh, 0, 0, math.random(1000), math.random(1000), 600.0, 6, 0.0, 0, 0.0, 50.0, 40.0)
             elseif IS_THIS_MODEL_A_HELI(mdl) then 
+                SET_DISABLE_AUTOMATIC_CRASH_TASK(tar_veh, true)
                 SET_HELI_BLADES_FULL_SPEED(tar_veh)
                 TASK_HELI_MISSION(ped, tar_veh, 0, 0, math.random(1000), math.random(1000), 300, 4, 200.0, 0.0, 0, 100, 1000, 0.0, 16)
             else
@@ -2669,6 +2910,9 @@ function set_up_player_actions(pid)
             SET_PED_COMBAT_ATTRIBUTES(ped, 5, true)
             SET_PED_FLEE_ATTRIBUTES(ped, 0, false)
             SET_PED_COMBAT_ATTRIBUTES(ped, 46, true)
+            SET_PED_CAN_RAGDOLL(ped, false)
+            SET_PED_FLEE_ATTRIBUTES(ped, 1, true)
+            SET_PED_COMBAT_ATTRIBUTES(ped, 17, 1)
             util.request_model(v_hash, 2000)
             local truck = entities.create_vehicle(v_hash, c, GET_ENTITY_HEADING(tar_veh))
             SET_PED_INTO_VEHICLE(ped, truck, -1)
@@ -2807,6 +3051,34 @@ function set_up_player_actions(pid)
     end)
 
 
+    veh_root:action("Turn into scrap", {}, "", function()
+        if players.is_marked_as_modder(pid) and detection_protection then 
+            fail('Target is a modder and detection protection is on.')
+            return
+        end
+        local car = GET_VEHICLE_PED_IS_IN(pid_to_ped(pid), true)
+        entities.request_control(car)
+        for i=0, 5 do
+            for i=0, 10 do
+                entities.detach_wheel(car, i)
+                SET_VEHICLE_DOOR_BROKEN(car, i, false)
+            end
+        end
+    end)
+
+    
+    veh_root:action("Repair", {}, "", function()
+        if players.is_marked_as_modder(pid) and detection_protection then 
+            fail('Target is a modder and detection protection is on.')
+            return
+        end
+        local car = GET_VEHICLE_PED_IS_IN(pid_to_ped(pid), true)
+        entities.request_control(car)
+        SET_VEHICLE_FIXED(car)
+    end)
+
+
+
     
     function firefighter_thread(ped, p_ped, truck)
         SET_TASK_VEHICLE_CHASE_BEHAVIOR_FLAG(ped, 1, true)
@@ -2828,7 +3100,12 @@ function set_up_player_actions(pid)
         end)
     end
 
-    local custom_hooker_options = {"Clone player", "Lester", "Tracy", "Ms Baker"}
+    local custom_hooker_options = {
+    {1, "Clone player", {}},
+    {2, "Lester", {}},
+    {3, "Tracy", {}},
+    {4, "Ms Baker", {}},
+    }
     npc_root:list_action("Spawn hooker", {'doloshooker'}, '', custom_hooker_options, function(index, value, click_type)
         local hooker
         local c = GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(pid_to_ped(pid), 0.0, 5.0, -0.3)
@@ -3066,10 +3343,17 @@ players.add_command_hook(set_up_player_actions)
 menu.my_root():hyperlink('Join Discord', 'https://discord.gg/zZ2eEjj88v', '')
 
 util.on_stop(function()
+    menu.set_value(shader_ref, initial_shader_int)
+    for pid, blip in pairs(broke_blips) do
+        if blip ~= nil then
+            util.remove_blip(blip)
+            broke_blips[pid] = nil
+        end
+    end 
+
     if duke_ped ~= nil then 
         entities.delete(duke_ped)
     end
-    menu.set_value(shader_ref, initial_shader_int)
 end)
 
 
