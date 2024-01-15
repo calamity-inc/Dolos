@@ -19,6 +19,7 @@ end
 
 local ROOT = menu.my_root()
 local SELF_ROOT = ROOT:list('Self')
+local BODYGUARD_ROOT = SELF_ROOT:list('Bodyguard')
 local ONLINE_ROOT = ROOT:list('Online')
 local CHAT_ROOT = ONLINE_ROOT:list('Chat', {}, 'chat is this real')
 local VEHICLE_ROOT = ROOT:list('Vehicle')
@@ -90,6 +91,44 @@ FAKE_ALERTS_ROOT:action('Show ban 2', {}, "", function(on_click)
     show_custom_alert_until_enter("You have been banned from Grand Theft Auto Online permanently.~n~Return to Grand Theft Auto V.")
 end)
 
+local weapon_names = {
+    {1, 'Unarmed', {}},
+}
+local weapon_hashes = {
+    [1] = 0,
+}
+
+
+local blacklist = {883325847, 3126027122, 406929569, 4256881901, 28811031, 2481070269, 741814745, 4256991824, 2694266206, 615608432, 600439132, 1233104067, 1834887169, -135142818, 2874559379, 126349499, 3125143736}
+
+
+
+
+function count_occurrences(table, element)
+    local count = 0
+    for _, value in ipairs(table) do
+        if value == element then
+            count = count + 1
+        end
+    end
+    return count
+end
+
+for util.get_weapons() as w do 
+    if table.contains(blacklist, w.hash) then 
+        continue 
+    end
+    local name = util.get_label_text(w.label_key)
+    local index = #weapon_names + 1
+    
+    if table.contains(weapon_names, name) then 
+        local count = count_occurrences(weapon_names, name)
+        name = name .. ' ' .. tostring(count + 1)
+    end
+
+    weapon_names[index] = {index, name, {}}
+    weapon_hashes[index] = w.hash
+end
 
 local all_vehicle_bones = {
     {1, 'wheel_lf'},
@@ -121,7 +160,8 @@ local npc_models_by_name = {
     ['Trevor'] = util.joaat('player_two'),
     ['Mechanic'] = util.joaat('s_m_m_autoshop_01'),
     ['Hooker'] = util.joaat('s_f_y_hooker_02'),
-    ['Shopkeeper'] = util.joaat('mp_m_shopkeep_01')
+    ['Shopkeeper'] = util.joaat('mp_m_shopkeep_01'),
+    ['Jesus'] = util.joaat('U_M_M_Jesus_01')
 }
 
 local OBJECTS = {
@@ -1005,6 +1045,92 @@ SELF_ROOT:textslider("Hit bong", {"hitbong"}, "", {"Hit", "Sober up"}, function(
     end
 end)
 
+local all_bodyguards = {}
+local bodyguard_model = "clone"
+local selected_bodyguard_wep = weapon_hashes[58]
+local bodyguard_invincibility = true
+
+local PLAYER_GROUP = GET_PED_GROUP_INDEX(players.user_ped())
+SET_GROUP_FORMATION(PLAYER_GROUP, 1)
+SET_PED_AS_GROUP_LEADER(players.user_ped(), PLAYER_GROUP)
+
+util.create_tick_handler(function()
+    -- i actually need to use pairs here prisuhm so shut up
+    for index, ped in pairs(all_bodyguards) do 
+        if ped == nil then
+            continue
+        end
+        if car_hdl ~= 0 and GET_VEHICLE_PED_IS_IN(ped) ~= car_hdl then
+            for i = 0, GET_VEHICLE_MODEL_NUMBER_OF_SEATS(GET_ENTITY_MODEL(car_hdl)) do
+                if IS_VEHICLE_SEAT_FREE(car_hdl, i) then
+                    TASK_ENTER_VEHICLE(ped, car_hdl, 10, i, 1.0, 0, 0)
+                end
+            end
+        end
+        local player_pos = players.get_position(players.user())
+        local dist = v3.distance(GET_ENTITY_COORDS(ped), player_pos)
+        if dist > 200 then
+            SET_ENTITY_COORDS(ped, player_pos.x, player_pos.y, player_pos.z, true, false, false, true)
+        end
+        if GET_ENTITY_HEALTH(ped) == 0 then
+            all_bodyguards[index] = nil
+        end
+    end
+end)
+
+BODYGUARD_ROOT:click_slider("Spawn amount", {"dolosbodyguardamt"}, "", 1, 10, 2, 1, function(val)
+    local pos = players.get_position(players.user())
+    for i=1,val do
+        local ped = nil
+        if string.lower(bodyguard_model) == "clone" then
+            ped = CLONE_PED(players.user_ped(), true, true, true)
+            SET_ENTITY_COORDS(ped, pos.x, pos.y, pos.z, false, true, true, true, true)
+        else
+            mdl = util.joaat(bodyguard_model)
+            util.request_model(mdl)
+            ped = entities.create_ped(28, mdl, pos, math.random(270))
+        end
+        all_bodyguards[#all_bodyguards + 1] = ped
+        SET_PED_ACCURACY(ped, 100)
+        SET_PED_CAN_RAGDOLL(ped, false)
+        SET_PED_COMBAT_ABILITY(ped, 3)
+        SET_PED_FLEE_ATTRIBUTES(ped, 0, 0)
+        SET_PED_FLEE_ATTRIBUTES(ped, 1, true)
+        TASK_FOLLOW_TO_OFFSET_OF_ENTITY(ped, players.user_ped(), 0, -2, 0, 1.0, -1, 0.1, true)
+        GIVE_WEAPON_TO_PED(ped, selected_bodyguard_wep, 1, false, true)
+        SET_PED_AS_GROUP_MEMBER(ped, PLAYER_GROUP)
+        SET_PED_NEVER_LEAVES_GROUP(ped, true)
+        if bodyguard_invincibility then
+            SET_ENTITY_INVINCIBLE(ped, true)
+        end
+        local blip = ADD_BLIP_FOR_ENTITY(ped)
+        SET_BLIP_SPRITE(blip, 60)
+        SET_BLIP_COLOUR(blip, 2)
+    end
+end)
+
+
+BODYGUARD_ROOT:action("Delete all", {"dolosdeletebodyguards"}, "", function()
+    for all_bodyguards as b do
+        entities.delete(b)
+    end
+    all_bodyguards = {}
+end)
+
+BODYGUARD_ROOT:text_input("Model", {"dolosbodyguardmodel"}, "The model to use for the bodyguard. Enter \"clone\" to clone yourself instead.", function(mdl)
+    bodyguard_model = string.lower(mdl)
+end, "clone")
+
+
+BODYGUARD_ROOT:list_select('Weapon', {'dolosbodyguardwep'}, '', weapon_names, 58, function(sel)
+    selected_bodyguard_wep = weapon_hashes[sel]
+end)
+
+BODYGUARD_ROOT:toggle('Invincible', {}, '', function(on)
+    bodyguard_invincibility = on
+end, true)
+
+
 local function find_a_train()
     for entities.get_all_vehicles_as_pointers() as v do
         if entities.get_model_hash(v) == util.joaat('freight') then
@@ -1459,6 +1585,59 @@ VEHICLE_ROOT:toggle("Drive on air", {}, "Jump and sneak key to adjust altitude",
     end
 end)
 
+local jesus_wheel = false
+local jesus_ped = nil
+local jesus_busy = false 
+
+function jesus_driver_thread(vehicle)
+    local pos = GET_ENTITY_COORDS(vehicle, false)
+    util.request_model(npc_models_by_name['Jesus'])
+    jesus_ped = entities.create_ped(28, npc_models_by_name['Jesus'], pos, 180)
+    SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(jesus_ped, true) 
+    SET_PED_CONFIG_FLAG(jesus_ped, 141, true)
+    SET_PED_FLEE_ATTRIBUTES(jesus_ped, 1, true)
+    SET_ENTITY_INVINCIBLE(jesus_ped, true)
+    --TASK_SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(ped, true)
+    SET_PED_FLEE_ATTRIBUTES(jesus_ped, 0, 0)
+    SET_PED_FLEE_ATTRIBUTES(jesus_ped, 1, true)
+    SET_PED_COMBAT_ATTRIBUTES(jesus_ped, 17, 1)
+    SET_PED_INTO_VEHICLE(players.user_ped(), vehicle, 0)
+    SET_PED_INTO_VEHICLE(jesus_ped, vehicle, -1)
+    local wp_x, wp_y, wp_z, _ = players.get_waypoint(players.user())
+    if wp_z == 0 then
+        TASK_VEHICLE_DRIVE_WANDER(jesus_ped, vehicle, 1000.0, 786748)
+    else
+        TASK_VEHICLE_DRIVE_TO_COORD(jesus_ped, vehicle, wp_x, wp_y, wp_z, 100, 1, GET_ENTITY_MODEL(vehicle), 786996, 5, 0)
+    end
+
+    util.create_thread(function()
+        while true do
+            if not jesus_wheel or car_hdl == 0 or not DOES_ENTITY_EXIST(car_hdl) or car_hdl ~= vehicle then
+                entities.delete(jesus_ped)
+                jesus_ped = nil
+                jesus_busy = false
+                menu.trigger_commands("jesuswheel off")
+                SET_PED_INTO_VEHICLE(players.user_ped(), vehicle, -1) 
+                break
+            end
+            util.yield()
+        end
+    end)
+end
+
+VEHICLE_ROOT:toggle("Jesus, take the wheel", {"jesuswheel"}, "", function(on)
+    if car_hdl == 0 then
+        fail('No active vehicle')
+        menu.trigger_commands("jesuswheel off")
+        return
+    end
+    jesus_wheel = on
+    if jesus_wheel then
+        jesus_driver_thread(car_hdl)
+    end
+end)
+
+
 local duke = false
 local duke_blip = nil
 local duke_ped = nil
@@ -1670,7 +1849,7 @@ WORLD_ROOT:toggle('Block LSC entrances', {}, '', function(on)
     util.request_model(prop_hash, 2000)
     if on then
         for auto_shop_locations as p do
-            local pos = p.pos
+            local pos = v3(p.pos)
             local ent = entities.create_object(prop_hash, pos)
             auto_shop_blockers[#auto_shop_blockers + 1] = ent
             SET_ENTITY_HEADING(ent, p.hdg)
@@ -1697,7 +1876,8 @@ WORLD_ROOT:toggle('Windmills at major areas', {}, '', function(on)
     local prop_hash = util.joaat('prop_windmill_01')
     util.request_model(prop_hash, 2000)
     if on then
-        for major_highway_positions as p do
+        for major_highway_positions as pos do
+            local p = v3(pos)
             p.z -= 3
             local ent = entities.create_object(prop_hash, p)
             windmill_props[#windmill_props + 1] = ent
@@ -1767,42 +1947,6 @@ function spawn_ped_for_blame(c)
     FREEZE_ENTITY_POSITION(ped, true)
     return ped
 end
-
-function count_occurrences(table, element)
-    local count = 0
-    for _, value in ipairs(table) do
-        if value == element then
-            count = count + 1
-        end
-    end
-    return count
-end
-
-local weapon_names = {
-    {1, 'Unarmed', {}},
-}
-local weapon_hashes = {
-    [1] = 0,
-}
-
-local blacklist = {883325847, 3126027122, 406929569, 4256881901, 28811031, 2481070269, 741814745, 4256991824, 2694266206, 615608432, 600439132, 1233104067, 1834887169, -135142818, 2874559379, 126349499, 3125143736}
-
-for util.get_weapons() as w do 
-    if table.contains(blacklist, w.hash) then 
-        continue 
-    end
-    local name = util.get_label_text(w.label_key)
-    local index = #weapon_names + 1
-    
-    if table.contains(weapon_names, name) then 
-        local count = count_occurrences(weapon_names, name)
-        name = name .. ' ' .. tostring(count + 1)
-    end
-
-    weapon_names[index] = {index, name, {}}
-    weapon_hashes[index] = w.hash
-end
-
 
 function dramatic_mode(veh)
     util.create_thread(function()
@@ -2596,6 +2740,14 @@ function set_up_player_actions(pid)
         end
     end)
 
+    misc_trolls_root:action("Teleport all non-modders into apartment", {''}, "", function(on_input)
+        for players.list(true, true, true) as pid do 
+            if not players.is_marked_as_modder(pid) then
+            end
+        end
+    end)
+
+
     misc_trolls_root:toggle_loop("Earthquake", {'earthquake'}, "", function(on_input)
         local rock_hashes = {util.joaat('rock_4_cl_2_1'), util.joaat('prop_ld_rubble_01'), util.joaat('prop_ld_rubble_03')}
         local c = players.get_position(pid)
@@ -3051,34 +3203,28 @@ function set_up_player_actions(pid)
     end)
 
 
-    veh_root:action("Turn into scrap", {}, "", function()
+    veh_root:list_action("Turn into scrap", {'scrap'}, "", {{1, "Scrap"}, {2, "Repair"}}, function(opt)
         if players.is_marked_as_modder(pid) and detection_protection then 
             fail('Target is a modder and detection protection is on.')
             return
         end
         local car = GET_VEHICLE_PED_IS_IN(pid_to_ped(pid), true)
-        entities.request_control(car)
-        for i=0, 5 do
-            for i=0, 10 do
-                entities.detach_wheel(car, i)
-                SET_VEHICLE_DOOR_BROKEN(car, i, false)
-            end
+        switch opt do
+            case 1:
+                entities.request_control(car)
+                for i=0, 5 do
+                    for i=0, 10 do
+                        entities.detach_wheel(car, i)
+                        SET_VEHICLE_DOOR_BROKEN(car, i, false)
+                    end
+                end
+                break
+            case 2:
+                entities.request_control(car)
+                SET_VEHICLE_FIXED(car)
+                break
         end
     end)
-
-    
-    veh_root:action("Repair", {}, "", function()
-        if players.is_marked_as_modder(pid) and detection_protection then 
-            fail('Target is a modder and detection protection is on.')
-            return
-        end
-        local car = GET_VEHICLE_PED_IS_IN(pid_to_ped(pid), true)
-        entities.request_control(car)
-        SET_VEHICLE_FIXED(car)
-    end)
-
-
-
     
     function firefighter_thread(ped, p_ped, truck)
         SET_TASK_VEHICLE_CHASE_BEHAVIOR_FLAG(ped, 1, true)
@@ -3299,6 +3445,81 @@ function set_up_player_actions(pid)
         end
     end)
 
+    npc_root:action('Cat spam', {'pedsvince'}, '', function()
+        local target_ped = pid_to_ped(pid)
+        local coords = players.get_position(pid)
+        local hash = util.joaat("a_c_cat_01")
+        util.request_model(hash, 2000)
+        for i=1, 30 do
+            local cat = entities.create_ped(28, hash, coords, math.random(0, 270))
+            local rand_x = math.random(-10, 10)*5
+            local rand_y = math.random(-10, 10)*5
+            local rand_z = math.random(-10, 10)*5
+            SET_ENTITY_INVINCIBLE(cat, true)
+            APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(cat, 1, rand_x, rand_y, rand_z, true, false, true, true)
+            PLAY_PAIN(cat, 7, 0, 0)
+        end
+    end)
+
+    local griefer_jesus = false
+    local griefer_jesus_vehicle = nil
+    local griefer_jesus_ped = nil
+    local griefer_jesus_spawn_pos = v3({x= -186.62863, y=-892.6082, z=29.34512})
+    local griefer_jesus_blip = nil
+    ---186.62863, -892.6082, 29.34512
+
+    special_atk_root:toggle("Griefer Jesus", {"grieferjesus"}, "", function(on)
+        griefer_jesus = on
+        if griefer_jesus then
+            util.request_model(npc_models_by_name['Jesus'])
+            griefer_jesus_ped = entities.create_ped(28, npc_models_by_name['Jesus'], griefer_jesus_spawn_pos, 180)
+            util.request_model(util.joaat("powersurge"))
+            griefer_jesus_vehicle = entities.create_vehicle(util.joaat("powersurge"), griefer_jesus_spawn_pos, 180)
+            upgrade_car(griefer_jesus_vehicle)
+            griefer_jesus_blip = ADD_BLIP_FOR_ENTITY(griefer_jesus_ped)
+            SET_BLIP_COLOUR(griefer_jesus_blip, 3)
+            SET_BLIP_SPRITE(griefer_jesus_blip, 119)
+            SET_PED_ACCURACY(griefer_jesus_ped, 100)
+            SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(griefer_jesus_ped, true) 
+            SET_PED_CAN_RAGDOLL(griefer_jesus_ped, false)
+            SET_PED_CONFIG_FLAG(griefer_jesus_ped, 140, false)
+            SET_PED_CONFIG_FLAG(griefer_jesus_ped, 45, false)
+            SET_PED_COMBAT_ABILITY(griefer_jesus_ped, 3)
+            SET_PED_COMBAT_ATTRIBUTES(griefer_jesus_ped, 1, true)
+            SET_ENTITY_INVINCIBLE(griefer_jesus_ped, true)
+            SET_ENTITY_INVINCIBLE(griefer_jesus_vehicle, true)
+            GIVE_WEAPON_TO_PED(griefer_jesus_ped, util.joaat("weapon_railgun"), 1, false, true)
+            SET_PED_INTO_VEHICLE(griefer_jesus_ped, griefer_jesus_vehicle, -1)
+            success("Griefer Jesus spawned and is on his way.")
+            util.create_thread(function()
+                while true do
+                    local tar_ped = pid_to_ped(pid)
+                    local player_exists = players.exists(pid)
+                    if not griefer_jesus or not player_exists then
+                        entities.delete(griefer_jesus_ped)
+                        entities.delete(griefer_jesus_vehicle)
+                        griefer_jesus_ped = nil
+                        if player_exists then
+                            menu.trigger_commands('grieferjesus' .. players.get_name(pid) .. ' off')
+                        end
+                        util.remove_blip(griefer_jesus_blip)
+                        griefer_jesus_blip = nil
+                        break
+                    end
+                    local dist = v3.distance(GET_ENTITY_COORDS(griefer_jesus_ped), players.get_position(pid))
+                    local tar_pos = players.get_position(pid)
+                    if dist > 100 then
+                        SET_PED_INTO_VEHICLE(griefer_jesus_ped, griefer_jesus_vehicle, -1)
+                        TASK_VEHICLE_DRIVE_TO_COORD_LONGRANGE(griefer_jesus_ped, griefer_jesus_vehicle, tar_pos.x, tar_pos.y, tar_pos.z,  1000.0, 786748, 5)
+                    end
+                    TASK_COMBAT_PED(griefer_jesus_ped, tar_ped, 0, 16)
+
+                    util.yield()
+                end
+            end)
+        end
+    end)
+
     object_root:action("Crusher", {}, "", function()
         local hash = util.joaat('sr_mp_spec_races_take_flight_sign')
         util.request_model(hash, 2000)
@@ -3310,6 +3531,7 @@ function set_up_player_actions(pid)
         end
     end)
     --World > Editor > Spawner > sr_mp_spec_races_take_flight_sign
+
 end
 
 function lang_num_to_name(num) 
