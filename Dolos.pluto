@@ -1063,9 +1063,12 @@ util.create_tick_handler(function()
         if car_hdl ~= 0 and GET_VEHICLE_PED_IS_IN(ped) ~= car_hdl then
             for i = 0, GET_VEHICLE_MODEL_NUMBER_OF_SEATS(GET_ENTITY_MODEL(car_hdl)) do
                 if IS_VEHICLE_SEAT_FREE(car_hdl, i) then
-                    TASK_ENTER_VEHICLE(ped, car_hdl, 10, i, 1.0, 0, 0)
+                    SET_PED_INTO_VEHICLE(ped, car_hdl, i)
+                    --TASK_ENTER_VEHICLE(ped, car_hdl, 0, i, 1.0, 0, 0)
                 end
             end
+        else
+            TASK_FOLLOW_TO_OFFSET_OF_ENTITY(ped, players.user_ped(), 0, -2, 0, 1.0, -1, 0.1, true)
         end
         local player_pos = players.get_position(players.user())
         local dist = v3.distance(GET_ENTITY_COORDS(ped), player_pos)
@@ -1090,7 +1093,6 @@ BODYGUARD_ROOT:click_slider("Spawn amount", {"dolosbodyguardamt"}, "", 1, 10, 2,
             util.request_model(mdl)
             ped = entities.create_ped(28, mdl, pos, math.random(270))
         end
-        all_bodyguards[#all_bodyguards + 1] = ped
         SET_PED_ACCURACY(ped, 100)
         SET_PED_CAN_RAGDOLL(ped, false)
         SET_PED_COMBAT_ABILITY(ped, 3)
@@ -1106,6 +1108,7 @@ BODYGUARD_ROOT:click_slider("Spawn amount", {"dolosbodyguardamt"}, "", 1, 10, 2,
         local blip = ADD_BLIP_FOR_ENTITY(ped)
         SET_BLIP_SPRITE(blip, 60)
         SET_BLIP_COLOUR(blip, 2)
+        all_bodyguards[#all_bodyguards + 1] = ped
     end
 end)
 
