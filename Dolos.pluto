@@ -12,7 +12,6 @@ pluto_use "0.6.0"
 
 -- Dolos, THE SPIRIT OF TRICKERY
 
-
 function first_to_upper(str)
     return (str:gsub("^%l", string.upper))
 end
@@ -21,6 +20,7 @@ local ROOT = menu.my_root()
 local SELF_ROOT = ROOT:list('Self')
 local BODYGUARD_ROOT = SELF_ROOT:list('Bodyguard')
 local ONLINE_ROOT = ROOT:list('Online')
+local DETECTIONS_ROOT = ONLINE_ROOT:list('Detections')
 local CHAT_ROOT = ONLINE_ROOT:list('Chat', {}, 'chat is this real')
 local VEHICLE_ROOT = ROOT:list('Vehicle')
 local WORLD_ROOT = ROOT:list('World')
@@ -186,13 +186,6 @@ SETTINGS_ROOT:toggle('Detection protection', {}, 'Makes it so you won\'t send ev
     detection_protection = on  
 end, true) 
 
-players.on_join(function(pid)
-    if pid == players.user() then 
-        return 
-    end
-end)
-
-
 local function pid_to_ped(pid)
     return GET_PLAYER_PED(pid)
 end 
@@ -211,6 +204,11 @@ end
 
 local function alert(message)
     util.toast('[Dolos] Attention: ')
+end
+
+
+if not async_http.have_access() and not SCRIPT_SILENT_START then
+    fail("You don\'t have internet access enabled for DOLOS. Some features may not work.")
 end
 
 local EXPLOSIONS = {
@@ -1476,6 +1474,39 @@ ONLINE_ROOT:action('Announce highest K/D player', {'announcebestkd'}, '', functi
     chat.send_message(highest .. ' has the highest K/D ratio in the session; a '  .. round(tonumber(highest_kd), 2) .. '.', false, true, true)
 end)
 
+local detection_teleports = false
+DETECTIONS_ROOT:toggle("Teleports", {}, "Detects when players teleport or \"move too quickly\".", function(on)
+    detection_teleports = on
+end)
+
+
+local player_last_positions = {}
+function start_teleport_detection_thread(pid)
+    local last_pos = players.get_position(pid)
+    util.create_thread(function()
+        if not players.exists(pid)  or players.user() == pid then 
+            util.stop_thread()
+        end
+        while true do
+            if not util.is_session_transition_active() then
+                if detection_teleports then
+                    local cur_pos =  players.get_position(pid)
+                    local ped = GET_PLAYER_PED_SCRIPT_INDEX(pid)
+                    if v3.distance(last_pos, cur_pos) >= 500 then
+                        if IS_PLAYER_PLAYING(pid) and not players.is_in_interior(pid) and not NETWORK_IS_PLAYER_FADING(pid) and not IS_PLAYER_DEAD(pid) and cur_pos.z > 0 and IS_ENTITY_VISIBLE(ped) then
+                            util.toast(players.get_name(pid) .. 'moved unusually quickly')
+                        end
+                    end
+                end
+            end
+            last_pos = players.get_position(pid)
+            util.yield(1000)
+        end
+    end)
+end
+
+
+
 
 function remove_extra_whitespace(str)
     return str:gsub("%s+", " ")
@@ -1640,6 +1671,27 @@ VEHICLE_ROOT:toggle("Jesus, take the wheel", {"jesuswheel"}, "", function(on)
     end
 end)
 
+VEHICLE_ROOT:toggle_loop("Rainbow headlights", {"rgbhdlights"}, "", function(on)
+    if car_hdl ~= 0 then 
+        TOGGLE_VEHICLE_MOD(car_hdl, 22, true)
+        for i=1, 12 do
+            SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(car_hdl, i)  
+            util.yield(200)
+        end
+    end
+end)
+
+VEHICLE_ROOT:toggle_loop("Horn spam", {}, "", function(toggle)
+    if car_hdl ~= 0 and  IS_PED_IN_ANY_VEHICLE(players.user_ped(), true) then
+        SET_VEHICLE_MOD(car_hdl, 14, math.random(0, 51), false)
+        SET_CONTROL_VALUE_NEXT_FRAME(2, 86, 1.0)
+        util.yield(50)
+        SET_CONTROL_VALUE_NEXT_FRAME(2, 86, 0.0)
+    end
+end)
+
+
+
 
 local duke = false
 local duke_blip = nil
@@ -1742,7 +1794,7 @@ WORLD_ROOT:toggle_loop('Reverse traffic', {}, 'Command all peds to drive in reve
     end
 end)
 
-WORLD_ROOT:action('Crash plane into Maze Bank Tower', {}, 'Make TSA canon in the GTA universe!', function()
+WORLD_ROOT:toggle_loop('Crash planes into Maze Bank Tower', {}, 'Make TSA canon in the GTA universe!', function()
     local plane_pos = {x = -914.1707, y = -1164.9396, z=180.35739}
     local plane_hash = util.joaat('jet')
     util.request_model(plane_hash, 2000)
@@ -1755,12 +1807,11 @@ WORLD_ROOT:action('Crash plane into Maze Bank Tower', {}, 'Make TSA canon in the
         SET_VEHICLE_FORWARD_SPEED(plane, 150.0)
         util.yield(1000)
     end
+    util.yield(30000)
+    if DOES_ENTITY_EXIST(plane) then
+        entities.delete(plane)
+    end
 end)
-
-WORLD_ROOT:action('Spawn animals', {}, 'test', function()
-    POPULATE_NOW()
-end)
-
 
 function cleanup_fish(fish)
     util.create_thread(function()
@@ -1925,6 +1976,16 @@ WORLD_ROOT:toggle_loop('TP all pickups', {}, '', function()
 end)
 
 
+local beep_cars = false
+WORLD_ROOT:toggle_loop("Beep horns on cars", {}, "", function(on)
+    for entities.get_all_vehicles_as_handles() as veh do 
+        if not IS_PED_A_PLAYER(GET_PED_IN_VEHICLE_SEAT(veh, -1, false)) then
+            if not IS_HORN_ACTIVE(veh) then
+                START_VEHICLE_HORN(veh, 200, util.joaat("HELDDOWN"), true)
+            end
+        end
+    end
+end)
 
 
 function get_rand_player_ped() 
@@ -1973,6 +2034,7 @@ function delete_entity_after(ent, time)
 end
 
 function set_up_player_actions(pid)
+    start_teleport_detection_thread(pid)
     local all_attacker_ents = {}
     local player_root = menu.shadow_root():list('Dolos')
     player_root = menu.player_root(pid):refByRelPath("Trolling"):getChildren()[1]:attachBefore(player_root)
