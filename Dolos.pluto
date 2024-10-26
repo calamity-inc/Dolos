@@ -3230,7 +3230,7 @@ function set_up_player_actions(pid)
         local car = GET_VEHICLE_PED_IS_IN(pid_to_ped(pid), true)
         if car ~= 0 then
             entities.request_control(car)
-            entities.set_gravity_multiplier(entities.handle_to_pointer(car), if on then 300 else 1)
+            entities.set_gravity_multiplier(entities.handle_to_pointer(car), on ? 300 : 1)
         end
     end, false)
 
